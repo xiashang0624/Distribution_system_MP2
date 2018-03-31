@@ -72,25 +72,40 @@ def Msg_deliver():
         time.sleep(0.01)
 
 
-# implement the delay mechanism
-def Delay(client_socket, target, message):
+# implement the delay mechanism for the get request and send request to the client server
+def Send_get(client_socket, target, message):
     delay_time = randint(min_delay, max_delay)/1000.0
     time.sleep(delay_time)
     client_socket.sendto(message.encode('utf-8'), addr_list[target])
 
 
-def Total_order_send_to_leader(client_socket, leader = 0):
+# implement the delay mechanism for the put request and send request to all
+# shared servers
+def Send_put(client_socket, message):
+    delay_time = randint(min_delay, max_delay)/1000.0
+    time.sleep(delay_time)
+    for i in range(4):
+        client_socket.sendto(message.encode('utf-8'),addr_list[i])
+
+def client_op(client_socket, leader=0):
     while True:
         message = input()
         msg = message.split()
-        if not msg or msg[0] != 'msend' or len(msg) <2:
-            print('Error input, total cast should use the following format: msend message')
+        if not msg or msg[0] != 'put' or msg[0] != 'get' or msg[0] != 'delay' or msg[0] != 'dump':
+            print('Error input, input should use the following format: put/get/delay/dump + key')
             pass
         else:
-            send_time = time.asctime().split()[3]
-            print ('Send Total-order Multicast '+ str('"') + message + str('"') +
-                   ', system time is ' + send_time)
-            Delay(client_socket, leader, message[6:])
+            send_time = int(time.time()*1000)  # get the timestampt in millisecond
+            command= msg[1]
+            if command == 'get':
+                key = msg[2]
+                log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+',\r\n')
+                Send_get(client_socket, P_ID, message)
+            if command == 'put':
+                key,value = msg[2:3]
+                log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+','+str(value)+',\r\n')
+                Send_get(client_socket, P_ID, message)
+
 
 ###### Main Program Starts here ####################
 # read the config file
@@ -115,23 +130,29 @@ def process_info(number):
 addr_list = []
 for i in range(4):
     addr_list.append(process_info(i))
-
-
-
 # Initialize the process information: process number, host address, and IP
 # address
 
-process_number = 9999
-while process_number not in {1,2,3,0}:
-    process_number = input('Select the process number from 0-3:' )
-    process_number = int(process_number)
+P_ID= 9999
+while process_number not in {0,1,2,3,4,5,6,7}:
+    P_ID= input('Select the process number from 0-7:' )
+    P_ID= int(P_ID)
 
 print('The process number selected is: {}'.format(process_number))
+
+# initiate the log file:
+file_name = 'log' + str(P_ID) + '.txt'
+log_file = open(file_name,"w+")
+
 
 # Assign a process ID to perform as the leader that enable total ordering
 leader_ID = 0
 # define a dictionary to store message with marker in the memory.
 msg_memory = {}
+# Initiate a dictionary to store the shared key-value paris.
+share_V= {'a':0,'b':0,'c':0,'d':0,'e':0,'f':0,'g':0,'h':0,'i':0,'j':0,
+          'k':0,'l':0,'m':0,'n':0,'o':0,'p':0,'q':0,'r':0,'s':0,'t':0,
+          'u':0,'v':0,'w':0,'x':0,'y':0,'z':0}
 
 # bind socket to the ip address based on the config file
 s= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -149,5 +170,5 @@ else:
 deliver_thread= threading.Thread(target = Msg_deliver)
 deliver_thread.start()
 
-# the main program is to send input msg to the leader
+# the main program is to broadcast the message
 Total_order_send_to_leader(s, leader_ID)
