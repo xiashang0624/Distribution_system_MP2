@@ -2,7 +2,13 @@ import socket, time, threading
 from random import randint
 import pdb
 
-# Key-Value Store consistency with linearizability.
+# Share-memory consistency with linearizability.
+# The third algorithm discussed in lecture is used to impletment the
+# linear-shared memory consistency model.  Totoal order is used for both read and
+# write command
+
+# Total order concept: one process is used as the leader to put a marker infront
+# of the multicast request message.
 
 # Each process also has a buffer (msg_memory), which is a dictionary in this
 # implementation. Once the message is delievered, the msg will be removed from
