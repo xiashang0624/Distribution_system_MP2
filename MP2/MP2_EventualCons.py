@@ -21,21 +21,22 @@ arbitray_log_num = 666
 # initialize a dictionary for storing key-value: value = (val, write_timestamp)
 replica = {}
 for i in range(26):
-    a = chr(65 + i)
+    a = chr(97 + i)
     replica[a] = (0, str(0))
     write_buffer[a] = 0
     read_buffer[a] = []
 
 # define the number of replica, the parameter W and R
-temp = input('decide on parameter: W, R, replica_number\n')
+temp = input('decide on parameter:\n in the format like below\nW,R,replica_number\n')
 temp1 = temp.split(',')
 W, R, number_replica = int(temp1[0]), int(temp1[1]), int(temp1[2])
+
 
 # ***************** client starts here  ********************
 # main thread used for buffer all the input instruction for client to operate
 def operation_input():
     while True:
-            message = input('input your message\n')
+            message = input('input your command:\n')
             msg = message.split()
             if msg[0] == 'exit':
                 print('manually exit ')
@@ -67,58 +68,65 @@ def client():
 def put(writeVar, writeVal):
     global waiting_flag
     req_time = time.asctime().split()[3].replace(':','')
-    log = str(arbitray_log_num) + ',' + str(process_number) + ',put,' + writeVar + ',' + req_time + ',req' + ',' + str(writeVal)
-    write_to_file(file_name, log)
-    waiting_flag = True
     message = 'write' + ',' + writeVar + ',' + str(writeVal) + ',' + str(req_time)
     if not writeVar in list(replica.keys()):  # delete
         print('wrong input for \'write\' command')
         # IOError('input error')
     else:
+        log = str(arbitray_log_num) + ',' + str(
+            process_number) + ',put,' + writeVar + ',' + req_time + ',req' + ',' + str(writeVal)
+        write_to_file(file_name, log)
+        waiting_flag = True
         Multicast_unorder(s, message)
-    # keeps on receiving acknowledgement until number of that is larger than
-    while (waiting_flag):
-        time.sleep(0.05)
+        # keeps on receiving acknowledgement until number of that is larger than
+        while (waiting_flag):
+            time.sleep(0.05)
 
-    req_time = time.asctime().split()[3].replace(':', '')
-    log = str(arbitray_log_num) + ',' + str(process_number) + ',put,' + writeVar + ',' + req_time + ',resp' + ',' + str(writeVal)
-    write_to_file(file_name, log)
+        req_time = time.asctime().split()[3].replace(':', '')
+        log = str(arbitray_log_num) + ',' + str(
+            process_number) + ',put,' + writeVar + ',' + req_time + ',resp' + ',' + str(writeVal)
+        write_to_file(file_name, log)
 
 
 def get(readVar):
     global waiting_flag
     message = 'read' + ',' + readVar
-
+    req_time = time.asctime().split()[3].replace(':', '')
     if not readVar in list(replica.keys()):  # delete
         print('wrong input')
         return 0
     else:
-        req_time = time.asctime().split()[3].replace(':', '')
         log = str(arbitray_log_num) + ',' + str(process_number) + ',get,' + readVar + ',' + req_time + ',req' + ','
         write_to_file(file_name, log)
         waiting_flag = True
         Multicast_unorder(s, message)
-    while (waiting_flag):
-        time.sleep(0.05)
+        while (waiting_flag):
+            time.sleep(0.05)
 
-    req_time = time.asctime().split()[3].replace(':', '')
-    # choose the val with the latest timestamp
-    x, y = max(read_buffer[readVar])
-    log = str(arbitray_log_num) + ',' + str(process_number) + ',get,' + readVar + ',' + req_time + ',resp' + ',' + str(y)
-    write_to_file(file_name, log)
-    return y
+        req_time = time.asctime().split()[3].replace(':', '')
+        # choose the val with the latest timestamp
+        x, y = max(read_buffer[readVar])
+        log = str(arbitray_log_num) + ',' + str(
+            process_number) + ',get,' + readVar + ',' + req_time + ',resp' + ',' + str(y)
+        write_to_file(file_name, log)
+        return y
+
 
 # print all variables and their values stored in the local replica
 def dump():
     req_time = time.asctime().split()[3].replace(':', '')
-    write_to_file(file_name, 'dump ' + req_time)
+    print('dump ' + req_time)
+    # write_to_file(file_name, 'dump ' + req_time)
     for i in replica.keys():
         val1, val2 = replica[i]
         log = str(i) + ' ' + str(val1) + ' ' + val2
-        write_to_file(file_name, log)
+        print(log)
+        # write_to_file(file_name, log)
+    print('input your command:')
+
 
 # prevent prompt input for several miliseconds
-def delay(interval ):
+def delay(interval):
     time.sleep(interval)
 
 
@@ -177,6 +185,7 @@ def replica_server(server_socket):
         except:
             pass
 
+
 # ****************broadcast with delay***************
 # define a function to uni-cast
 def Unicast(client_socket, target, message):
@@ -186,7 +195,8 @@ def Unicast(client_socket, target, message):
 
 # implement the delay mechanism
 def Delay(client_socket, target, message):
-    delay_time = randint(min_delay, max_delay)/1000.0 #set it to 0 to remove the delay mechanism
+    delay_time = randint(min_delay, max_delay)/1000.0
+    # set it to 0 to remove the delay mechanism
     time.sleep(delay_time)
     client_socket.sendto(message.encode('utf-8'), addr_list[target])
 
@@ -205,6 +215,7 @@ def process_info(number):
     address = port_info[number][1]
     port = int(port_info[number][2])
     return (address, port)
+
 
 # read the config file
 with open('config.txt') as f:
@@ -232,6 +243,7 @@ print('The process number selected is: {}'.format(process_number))
 
 # initialize a log file
 file_name = 'log' + str(process_number) + '.txt'
+
 
 # write log file
 def write_to_file(name, text):
