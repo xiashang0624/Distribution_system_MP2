@@ -1,6 +1,6 @@
 import socket, time, threading, queue
 from random import randint
-import pdb
+#import pdb
 
 # Share-memory consistency with linearizability.
 # The third algorithm discussed in lecture is used to impletment the
@@ -107,7 +107,7 @@ def Send_Delay(client_socket, target, message):
 def Total_order_send_to_leader():
     global Command_buff
     while True:
-        message = input('enter command here:')
+        message = input('enter command here:\n')
         msg = message.split()
         if not msg:
             print('Error input, input should use the following format: put/get/delay/dump + key')
