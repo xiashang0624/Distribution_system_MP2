@@ -33,7 +33,7 @@ def total_listen_leader(server_socket):
                 msg_to_buffer = {recieved_marker: decode_msg[msg_index_s+1:] + recieve_time}
                 msg_memory.update(msg_to_buffer)
         except:
-            time.sleep(0.05)
+            time.sleep(0.01)
             pass
 
 
@@ -87,7 +87,7 @@ def Send_put(client_socket, message):
     for i in range(4):
         client_socket.sendto(message.encode('utf-8'),addr_list[i])
 
-def client_op(client_socket, leader=0):
+def Total_order_send_to_leader(client_socket, leader=0):
     while True:
         message = input()
         msg = message.split()
@@ -97,14 +97,20 @@ def client_op(client_socket, leader=0):
         else:
             send_time = int(time.time()*1000)  # get the timestampt in millisecond
             command= msg[1]
-            if command == 'get':
+            if command == 'get':            # write the get command to log file and broadcast
                 key = msg[2]
                 log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+',\r\n')
                 Send_get(client_socket, P_ID, message)
-            if command == 'put':
+            elif command == 'put':          # write the put command to log file and broadcast
                 key,value = msg[2:3]
                 log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+','+str(value)+',\r\n')
                 Send_get(client_socket, P_ID, message)
+            elif command == 'delay':        # put the stdin sleep
+                time.sleep(int(msg[1])/1000.0)
+            elif command == 'dump':    # print all the key-value pairs in shared memory
+                for key,value in sorted(share_V.items()):
+                    print (key,':',value)
+
 
 
 ###### Main Program Starts here ####################
