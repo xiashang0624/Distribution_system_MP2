@@ -1,21 +1,17 @@
 import socket, time, threading
 from random import randint
 
-# Eventual Consistency key-value system is to make the Write and Read opearation request from
+# Eventual Consistency key-value system is to make the Write and Read opearation from
 # different process to:
 # 1. write with the timestamp
 # 2. get the output by latest-write wins,
 # both of which follow the eventual consistency model.
 
-# indicate if the eventual consistency is  tempeorarily met
-global waiting_flag
-waiting_flag = False
-
 write_buffer = {}
 read_buffer = {}
+global waiting_flag
+waiting_flag = False
 operation_buffer = []
-
-# arbitray_log_num for index when us of the visualization tool
 arbitray_log_num = 666
 
 # initialize a dictionary for storing key-value: value = (val, write_timestamp)
@@ -26,47 +22,42 @@ for i in range(26):
     write_buffer[a] = 0
     read_buffer[a] = []
 
-# define the number of replica, the parameter W and R
-temp = input('decide on parameter: W, R, replica_number\n')
-temp = temp.split(',')
-W, R, number_replica = int(temp[0]), int(temp[1]), int(temp[2])
-
-# ***************** client starts here  ********************
+# *****************client ********************
 # main thread used for buffer all the input instruction for client to operate
-def operation_input():
+def main():
     while True:
             message = input('input your message\n')
             msg = message.split()
             if msg[0] == 'exit':
                 print('manually exit ')
                 exit()
-            elif msg[0] == 'delay':
-                time.sleep(int(msg[1]))
-            elif msg[0] in {'put', 'get', 'dump'}:
-                 operation_buffer.append(msg)
             else:
-                print('Invalid input')
+                 operation_buffer.append(msg)
 
-
-# client is thread for client operation, it gets the operation from the operation
-# buffer
+# client is the main thread, waiting for operation from input()
 def client():
     while(True):
         if len(operation_buffer) != 0:
             msg = operation_buffer.pop(0)
             if msg[0] == 'put':
                 put(msg[1], int(msg[2]))
+                print('put finished:write ' + msg[1] + ' to be ' + msg[2])
             elif msg[0] == 'get':
                 output = get(msg[1])
+                print('get finished:' + msg[1] + ' is ' + str(output))
             # match the command to different function to manipulate replica
             elif msg[0] == 'dump':
                 dump()
+            elif msg[0] == 'delay':
+                time.sleep(int(msg[1]))
+            else:
+                print('Invalid input')
         time.sleep(0.05)
 
 
 def put(writeVar, writeVal):
     global waiting_flag
-    req_time = time.asctime().split()[3].replace(':','')
+    req_time = time.asctime().split()[3]
     log = str(arbitray_log_num) + ',' + str(process_number) + ',put,' + writeVar + ',' + req_time + ',req' + ',' + str(writeVal)
     write_to_file(file_name, log)
     waiting_flag = True
@@ -78,9 +69,9 @@ def put(writeVar, writeVal):
         Multicast_unorder(s, message)
     # keeps on receiving acknowledgement until number of that is larger than
     while (waiting_flag):
+        # print('waiting for write_ack')
         time.sleep(0.05)
-
-    req_time = time.asctime().split()[3].replace(':', '')
+    print('waiting here ')
     log = str(arbitray_log_num) + ',' + str(process_number) + ',put,' + writeVar + ',' + req_time + ',resp' + ',' + str(writeVal)
     write_to_file(file_name, log)
 
@@ -93,7 +84,7 @@ def get(readVar):
         print('wrong input')
         return 0
     else:
-        req_time = time.asctime().split()[3].replace(':', '')
+        req_time = time.asctime().split()[3]
         log = str(arbitray_log_num) + ',' + str(process_number) + ',get,' + readVar + ',' + req_time + ',req' + ','
         write_to_file(file_name, log)
         waiting_flag = True
@@ -101,7 +92,6 @@ def get(readVar):
     while (waiting_flag):
         time.sleep(0.05)
 
-    req_time = time.asctime().split()[3].replace(':', '')
     # choose the val with the latest timestamp
     x, y = max(read_buffer[readVar])
     log = str(arbitray_log_num) + ',' + str(process_number) + ',get,' + readVar + ',' + req_time + ',resp' + ',' + str(y)
@@ -110,11 +100,11 @@ def get(readVar):
 
 # print all variables and their values stored in the local replica
 def dump():
-    req_time = time.asctime().split()[3].replace(':', '')
-    write_to_file(file_name, 'dump ' + req_time)
+    write_to_file(file_name, 'dump')
     for i in replica.keys():
         val1, val2 = replica[i]
-        log = str(i) + ' ' + str(val1) + ' ' + val2
+        print (i, val1, val2)
+        log = str(i) + ' ' + str(val1) + ' ' + str(val2)
         write_to_file(file_name, log)
 
 # prevent prompt input for several miliseconds
@@ -127,6 +117,7 @@ def replica_req(var, src_process):
     local_val, timestamp = replica[var]
     ack_read = 'ack_read' + ',' + var + ',' + str(local_val) + ',' + timestamp
     Unicast(s, src_process, ack_read)
+    print('ack_read sent')
 
 
 def replica_update(var, val, timestamp, src_process):
@@ -134,8 +125,9 @@ def replica_update(var, val, timestamp, src_process):
     # last write wins
     if timestamp > loc_val_ts:
         replica[var] = (val, timestamp)
+        print('loacl copy of ' + var + 'is updated')
     else:
-        pass
+        print('update message is out of date')
     ack_write = 'ack_write' + ',' + var
     Unicast(s, src_process, ack_write)
 
@@ -150,7 +142,7 @@ def replica_server(server_socket):
             receive_str = recieve_msg.decode('utf-8')
             msg = receive_str.split(',')
             operata = msg[0]
-            # recv_time = time.asctime().strip().split()[3]
+            recv_time = time.asctime().strip().split()[3]
             if operata == 'write':
                 replica_update(msg[1], int(msg[2]), msg[3], receive_src)
 
@@ -163,17 +155,22 @@ def replica_server(server_socket):
                 read_buffer[msg[1]].append((msg[3], int(msg[2])))
                 if len(list(read_buffer[msg[1]])) == R:
                     # log_file.write()
+                    print('waiting_6flag is ' + str(waiting_flag))
                     waiting_flag = False
                 elif len(read_buffer[msg[1]]) == number_replica:
                     read_buffer[msg[1]] = []
+                    print(msg[1] + '\'s read finished from redundant replica(n - R)')
 
             elif operata == 'ack_write':
                 # when ack_write for some operators to write more than W times, then it will be ok.
                 write_buffer[msg[1]] += 1
                 if write_buffer[msg[1]] == W:
                     waiting_flag = False
+                    print( 'waiting_flag is ' + str(waiting_flag))
                 elif write_buffer[msg[1]] == number_replica:
                     write_buffer[msg[1]] = 0
+                    print(msg[1] + '\'s update finished to rest of replica(n - W)')
+            print (operata + ' from process {}, system time is '.format(receive_src) + recv_time)
         except:
             pass
 
@@ -190,7 +187,6 @@ def Delay(client_socket, target, message):
     time.sleep(delay_time)
     client_socket.sendto(message.encode('utf-8'), addr_list[target])
 
-
 # Unordered multi-cast
 def Multicast_unorder(client_socket, message):
         for i in range(number_replica):
@@ -199,7 +195,11 @@ def Multicast_unorder(client_socket, message):
             #     print(t.name + 'threading for ' + str(i) + 'th multicast ')
 
 
-# **********Main**************
+# define the number of replica, the parameter W and R
+number_replica = 7
+W = 1
+R = 1
+
 # get the process IP and port info based on the selected number
 def process_info(number):
     address = port_info[number][1]
@@ -225,7 +225,7 @@ for i in range(number_replica):
 
 process_number = 9999
 while not process_number in {1,2,3,4,5,6,0}:
-    process_number = input('choose the process num from 0-6:' )
+    process_number = input('choose the process num from 0-3:' )
     process_number = int(process_number)
 print('The process number selected is: {}'.format(process_number))
 
@@ -247,6 +247,9 @@ s.bind(addr_list[process_number])
 replica_thread = threading.Thread(target=replica_server, args=(s,))
 replica_thread.start()
 
-client_thread = threading.Thread(target=client)
-client_thread.start()
-operation_input()
+client_thhread = threading.Thread(target=client)
+client_thhread.start()
+main()
+
+
+
