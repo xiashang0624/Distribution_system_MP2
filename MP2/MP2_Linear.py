@@ -73,20 +73,15 @@ def Msg_deliver():
 
 
 # implement the delay mechanism for the get request and send request to the client server
-def Send_get(client_socket, target, message):
+def Send_Delay(client_socket, target, message):
     delay_time = randint(min_delay, max_delay)/1000.0
     time.sleep(delay_time)
-    client_socket.sendto(message.encode('utf-8'), addr_list[target])
+    send_message = str(P_ID) + ' ' + message    # here I put the process ID infront of the message to the leader
+    client_socket.sendto(send_message.encode('utf-8'), addr_list[target])
 
 
-# implement the delay mechanism for the put request and send request to all
-# shared servers
-def Send_put(client_socket, message):
-    delay_time = randint(min_delay, max_delay)/1000.0
-    time.sleep(delay_time)
-    for i in range(4):
-        client_socket.sendto(message.encode('utf-8'),addr_list[i])
-
+# Client input: depending on the input format, initilize total order-multicast with a
+# delay function embedded.
 def Total_order_send_to_leader(client_socket, leader=0):
     while True:
         message = input()
@@ -100,11 +95,11 @@ def Total_order_send_to_leader(client_socket, leader=0):
             if command == 'get' and len(msg)==2 and msg[1] in share_V: # write the get command to log file and broadcast
                 key = msg[1]
                 log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+',\r\n')
-                Send_get(client_socket, leader, message)
+                Send_Delay(client_socket, leader, message)
             elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
                 key,value = msg[1:2]
                 log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+','+str(value)+',\r\n')
-                Send_get(client_socket, leader, message)
+                Send_Delay(client_socket, leader, message)
             elif command == 'delay' and len(msg) == 2:        # put the stdin sleep
                 time.sleep(int(msg[1])/1000.0)
             elif command == 'dump' and len(msg) == 1:    # print all the key-value pairs in shared memory
