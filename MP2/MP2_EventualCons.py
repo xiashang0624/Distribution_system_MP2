@@ -28,8 +28,8 @@ for i in range(26):
 
 # define the number of replica, the parameter W and R
 temp = input('decide on parameter: W, R, replica_number\n')
-temp = temp.split(',')
-W, R, number_replica = int(temp[0]), int(temp[1]), int(temp[2])
+temp1 = temp.split(',')
+W, R, number_replica = int(temp1[0]), int(temp1[1]), int(temp1[2])
 
 # ***************** client starts here  ********************
 # main thread used for buffer all the input instruction for client to operate
