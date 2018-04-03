@@ -1,18 +1,21 @@
 import socket, time, threading
 from random import randint
 
-# Eventual Consistency key-value system is to make the Write and Read opearation from
+# Eventual Consistency key-value system is to make the Write and Read opearation request from
 # different process to:
 # 1. write with the timestamp
 # 2. get the output by latest-write wins,
 # both of which follow the eventual consistency model.
 
+# indicate if the eventual consistency is  tempeorarily met
 global waiting_flag
 waiting_flag = False
 
 write_buffer = {}
 read_buffer = {}
 operation_buffer = []
+
+# arbitray_log_num for index when us of the visualization tool
 arbitray_log_num = 666
 
 # initialize a dictionary for storing key-value: value = (val, write_timestamp)
@@ -28,9 +31,9 @@ temp = input('decide on parameter: W, R, replica_number\n')
 temp = temp.split(',')
 W, R, number_replica = int(temp[0]), int(temp[1]), int(temp[2])
 
-# *****************client ********************
+# ***************** client starts here  ********************
 # main thread used for buffer all the input instruction for client to operate
-def main():
+def operation_input():
     while True:
             message = input('input your message\n')
             msg = message.split()
@@ -39,10 +42,14 @@ def main():
                 exit()
             elif msg[0] == 'delay':
                 time.sleep(int(msg[1]))
-            else:
+            elif msg[0] in {'put', 'get', 'dump'}:
                  operation_buffer.append(msg)
+            else:
+                print('Invalid input')
 
-# client is the main thread, waiting for operation from input()
+
+# client is thread for client operation, it gets the operation from the operation
+# buffer
 def client():
     while(True):
         if len(operation_buffer) != 0:
@@ -54,8 +61,6 @@ def client():
             # match the command to different function to manipulate replica
             elif msg[0] == 'dump':
                 dump()
-            else:
-                print('Invalid input')
         time.sleep(0.05)
 
 
@@ -244,4 +249,4 @@ replica_thread.start()
 
 client_thread = threading.Thread(target=client)
 client_thread.start()
-main()
+operation_input()
