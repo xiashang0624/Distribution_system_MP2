@@ -82,11 +82,10 @@ def Msg_deliver():
                 if int(buff_msg[0]) == P_ID:
                     share_V[buff_msg[-2]] = int(buff_msg[-1])
                     recv_time = int(time.time()*1000)  # get the timestampt in millisecond
-                    text_to_file = '555,'+str(P_ID)+',get,'+buff_msg[-1]+','+str(recv_time)+','+'resp,'+str(share_V[buff_msg[-1]])
+                    text_to_file = '555,'+str(P_ID)+',put,'+buff_msg[-2]+','+str(recv_time)+','+'resp,'+str(share_V[buff_msg[-2]])
                     write_to_file(file_name, text_to_file)
-
-
-
+                else:
+                    share_V[buff_msg[-2]] = int(buff_msg[-1])
             del msg_memory[mark_deliver]
             mark_deliver += 1
         time.sleep(0.01)
@@ -118,7 +117,7 @@ def Total_order_send_to_leader(client_socket, leader=0):
                 write_to_file(file_name, text_to_file)
                 Send_Delay(client_socket, leader, message)
             elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
-                key,value = msg[1:2]
+                key,value = msg[1], msg[2]
                 text_to_file = '555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+','+str(value)+','
                 write_to_file(file_name, text_to_file)
                 Send_Delay(client_socket, leader, message)
