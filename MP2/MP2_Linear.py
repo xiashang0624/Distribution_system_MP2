@@ -91,25 +91,29 @@ def Total_order_send_to_leader(client_socket, leader=0):
     while True:
         message = input()
         msg = message.split()
-        if not msg or msg[0] != 'put' or msg[0] != 'get' or msg[0] != 'delay' or msg[0] != 'dump':
+        if not msg:
             print('Error input, input should use the following format: put/get/delay/dump + key')
             pass
         else:
             send_time = int(time.time()*1000)  # get the timestampt in millisecond
-            command= msg[1]
-            if command == 'get':            # write the get command to log file and broadcast
-                key = msg[2]
+            command= msg[0]
+            if command == 'get' and len(msg)==2 and msg[1] in share_V: # write the get command to log file and broadcast
+                key = msg[1]
                 log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+',\r\n')
-                Send_get(client_socket, P_ID, message)
-            elif command == 'put':          # write the put command to log file and broadcast
-                key,value = msg[2:3]
+                Send_get(client_socket, leader, message)
+            elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
+                key,value = msg[1:2]
                 log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+','+str(value)+',\r\n')
-                Send_get(client_socket, P_ID, message)
-            elif command == 'delay':        # put the stdin sleep
+                Send_get(client_socket, leader, message)
+            elif command == 'delay' and len(msg) == 2:        # put the stdin sleep
                 time.sleep(int(msg[1])/1000.0)
-            elif command == 'dump':    # print all the key-value pairs in shared memory
+            elif command == 'dump' and len(msg) == 1:    # print all the key-value pairs in shared memory
                 for key,value in sorted(share_V.items()):
                     print (key,':',value)
+            else:
+                print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
+                pass
+
 
 
 
