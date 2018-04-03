@@ -4,7 +4,7 @@ import pdb
 
 # Share-memory consistency with linearizability.
 # The third algorithm discussed in lecture is used to impletment the
-# linear-shared memory consistency model.  Totoal order is used for both read and
+# linear-shared memory consistency model.  Total order is used for both read and
 # write command
 
 # Total order concept: one process is used as the leader to put a marker infront
@@ -26,8 +26,7 @@ def total_listen_leader(server_socket):
             if decode_msg.split()[0]!='Marker':
                 # Here I use the following format to assign a numeric marker to
                 # each message recived using with the leader: "*Marker number :"
-                marked_msg = 'Marker ' + str(mark) + ' :received '+ str('"') +\
-                              str(decode_msg) + str('"') +' from process {}'.format(addr[-1]%10)
+                marked_msg = 'Marker ' + str(mark) + ' :' + str(decode_msg)
                 mark += 1
                 cast_thread = threading.Thread(target = Multicast_from_leader, args=(server_socket, marked_msg))
                 cast_thread.start()
@@ -35,11 +34,10 @@ def total_listen_leader(server_socket):
                 # save the message with time stamp in the buffer (msg_memory)
                 msg_index_s = decode_msg.find(':') # find the starting index based on the symbol of colon
                 recieved_marker = int(decode_msg.split()[1]) # get the index of marker in the msg
-                recieve_time = ', system time is: ' + time.asctime().split()[3]
-                msg_to_buffer = {recieved_marker: decode_msg[msg_index_s+1:] + recieve_time}
+                msg_to_buffer = {recieved_marker: decode_msg[msg_index_s+1:]}
                 msg_memory.update(msg_to_buffer)
         except:
-            time.sleep(0.01)
+            time.sleep(0.05)
             pass
 
 
@@ -59,20 +57,36 @@ def total_listen_other(server_socket):
             # save the message with time stamp in the buffer (msg_memory)
             msg_index_s = decode_msg.find(':') # find the starting index based on the symbol of colon
             recieved_marker = int(decode_msg.split()[1]) # get the index of marker in the msg
-            recieve_time = ', system time is: ' + time.asctime().split()[3]
-            msg_to_buffer = {recieved_marker: decode_msg[msg_index_s+1:] + recieve_time}
+            msg_to_buffer = {recieved_marker: decode_msg[msg_index_s+1:]}
             msg_memory.update(msg_to_buffer)
         except:
             time.sleep(0.05)
             pass
 
 
+# msg_memory value format: "P_ID Commmand Key Value".
+# For example: "1 get x" means process 1 initilze command of read x.
+# "2 put x 9" means process 2 initilize command of write x with value of 9
 def Msg_deliver():
     mark_deliver = 0
     global msg_memory
     while True:
         if msg_memory and min(msg_memory) == mark_deliver:
-            print (msg_memory[mark_deliver])
+            buff_msg = msg_memory[mark_deliver].split()
+            if buff_msg[1] == 'get':
+                if int(buff_msg[0]) == P_ID:
+                    recv_time = int(time.time()*1000)  # get the timestampt in millisecond
+                    text_to_file = '555,'+str(P_ID)+',get,'+buff_msg[-1]+','+str(recv_time)+','+'resp,'+str(share_V[buff_msg[-1]])
+                    write_to_file(file_name, text_to_file)
+            elif buff_msg[1] == 'put':
+                if int(buff_msg[0]) == P_ID:
+                    share_V[buff_msg[-2]] = int(buff_msg[-1])
+                    recv_time = int(time.time()*1000)  # get the timestampt in millisecond
+                    text_to_file = '555,'+str(P_ID)+',get,'+buff_msg[-1]+','+str(recv_time)+','+'resp,'+str(share_V[buff_msg[-1]])
+                    write_to_file(file_name, text_to_file)
+
+
+
             del msg_memory[mark_deliver]
             mark_deliver += 1
         time.sleep(0.01)
@@ -100,11 +114,13 @@ def Total_order_send_to_leader(client_socket, leader=0):
             command= msg[0]
             if command == 'get' and len(msg)==2 and msg[1] in share_V: # write the get command to log file and broadcast
                 key = msg[1]
-                log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+',\r\n')
+                text_to_file = '555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req,'
+                write_to_file(file_name, text_to_file)
                 Send_Delay(client_socket, leader, message)
             elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
                 key,value = msg[1:2]
-                log_file.write('555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+','+str(value)+',\r\n')
+                text_to_file = '555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+','+str(value)+','
+                write_to_file(file_name, text_to_file)
                 Send_Delay(client_socket, leader, message)
             elif command == 'delay' and len(msg) == 2:        # put the stdin sleep
                 time.sleep(int(msg[1])/1000.0)
@@ -114,8 +130,6 @@ def Total_order_send_to_leader(client_socket, leader=0):
             else:
                 print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
                 pass
-
-
 
 
 ###### Main Program Starts here ####################
@@ -145,16 +159,19 @@ for i in range(4):
 # address
 
 P_ID= 9999
-while process_number not in {0,1,2,3,4,5,6,7}:
+while P_ID not in {0,1,2,3,4,5,6,7}:
     P_ID= input('Select the process number from 0-7:' )
     P_ID= int(P_ID)
 
-print('The process number selected is: {}'.format(process_number))
+print('The process number selected is: {}'.format(P_ID))
 
-# initiate the log file:
+# log_file function
 file_name = 'log' + str(P_ID) + '.txt'
-log_file = open(file_name,"w+")
 
+def write_to_file(name, text):
+    log_file = open(name, "a+")
+    log_file.write(text+'\r\n')
+    log_file.close()
 
 # Assign a process ID to perform as the leader that enable total ordering
 leader_ID = 0
@@ -167,10 +184,10 @@ share_V= {'a':0,'b':0,'c':0,'d':0,'e':0,'f':0,'g':0,'h':0,'i':0,'j':0,
 
 # bind socket to the ip address based on the config file
 s= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.bind(addr_list[process_number])
+s.bind(addr_list[P_ID])
 
 # a thread is used to recieve incoming message
-if process_number == leader_ID:
+if P_ID == leader_ID:
     receive_thread = threading.Thread(target=total_listen_leader, args=(s,))
     receive_thread.start()
 else:
@@ -181,5 +198,5 @@ else:
 deliver_thread= threading.Thread(target = Msg_deliver)
 deliver_thread.start()
 
-# the main program is to broadcast the message
+# the main program is used for clinet to take input message and process it
 Total_order_send_to_leader(s, leader_ID)
