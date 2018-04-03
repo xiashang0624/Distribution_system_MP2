@@ -1,4 +1,4 @@
-import socket, time, threading
+import socket, time, threading, queue
 from random import randint
 import pdb
 
@@ -43,7 +43,7 @@ def total_listen_leader(server_socket):
 
 # Total order leader broadcast msg,
 def Multicast_from_leader(client_socket, message, leader_ID=0):
-    for i in range(4):
+    for i in range(7):
         client_socket.sendto(message.encode('utf-8'),addr_list[i])
 
 
@@ -68,6 +68,7 @@ def total_listen_other(server_socket):
 # For example: "1 get x" means process 1 initilze command of read x.
 # "2 put x 9" means process 2 initilize command of write x with value of 9
 def Msg_deliver():
+    global invoke
     mark_deliver = 0
     global msg_memory
     while True:
@@ -78,12 +79,14 @@ def Msg_deliver():
                     recv_time = int(time.time()*1000)  # get the timestampt in millisecond
                     text_to_file = '555,'+str(P_ID)+',get,'+buff_msg[-1]+','+str(recv_time)+','+'resp,'+str(share_V[buff_msg[-1]])
                     write_to_file(file_name, text_to_file)
+                    invoke = True
             elif buff_msg[1] == 'put':
                 if int(buff_msg[0]) == P_ID:
                     share_V[buff_msg[-2]] = int(buff_msg[-1])
                     recv_time = int(time.time()*1000)  # get the timestampt in millisecond
                     text_to_file = '555,'+str(P_ID)+',put,'+buff_msg[-2]+','+str(recv_time)+','+'resp,'+str(share_V[buff_msg[-2]])
                     write_to_file(file_name, text_to_file)
+                    invoke = True
                 else:
                     share_V[buff_msg[-2]] = int(buff_msg[-1])
             del msg_memory[mark_deliver]
@@ -101,14 +104,35 @@ def Send_Delay(client_socket, target, message):
 
 # Client input: depending on the input format, initilize total order-multicast with a
 # delay function embedded.
-def Total_order_send_to_leader(client_socket, leader=0):
+def Total_order_send_to_leader():
+    global Command_buff
     while True:
-        message = input()
+        message = input('enter command here:')
         msg = message.split()
         if not msg:
             print('Error input, input should use the following format: put/get/delay/dump + key')
             pass
         else:
+            command= msg[0]
+            if command == 'get' and len(msg)==2 and msg[1] in share_V: # write the get command to log file and broadcast
+                Command_buff.put(message)
+            elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
+                Command_buff.put(message)
+            elif command == 'delay' and len(msg) == 2:        # put the stdin sleep
+                Command_buff.put(message)
+            elif command == 'dump' and len(msg) == 1:    # print all the key-value pairs in shared memory
+                Command_buff.put(message)
+            else:
+                print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
+                pass
+
+def client_to_file(client_socket, leader=0):
+    global Command_buff
+    global invoke
+    while True:
+        if invoke == True and not Command_buff.empty():
+            message= Command_buff.get()
+            msg = message.split()
             send_time = int(time.time()*1000)  # get the timestampt in millisecond
             command= msg[0]
             if command == 'get' and len(msg)==2 and msg[1] in share_V: # write the get command to log file and broadcast
@@ -116,25 +140,28 @@ def Total_order_send_to_leader(client_socket, leader=0):
                 text_to_file = '555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req,'
                 write_to_file(file_name, text_to_file)
                 Send_Delay(client_socket, leader, message)
+                invoke = False
             elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
                 key,value = msg[1], msg[2]
                 text_to_file = '555,'+str(P_ID)+','+command+','+key+','+str(send_time)+','+'req'+','+str(value)+','
                 write_to_file(file_name, text_to_file)
                 Send_Delay(client_socket, leader, message)
+                invoke = False
             elif command == 'delay' and len(msg) == 2:        # put the stdin sleep
                 time.sleep(int(msg[1])/1000.0)
             elif command == 'dump' and len(msg) == 1:    # print all the key-value pairs in shared memory
                 for key,value in sorted(share_V.items()):
                     print (key,':',value)
-            else:
-                print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
-                pass
+        else:
+            time.sleep(0.01)
+            pass
 
 
 ###### Main Program Starts here ####################
 # read the config file
 with open('config.txt') as f:
     content = f.readlines()
+
 
 # save the min_delay and max_delay in two varibles
 min_delay, max_delay = content[0].strip().split()
@@ -152,7 +179,7 @@ def process_info(number):
     return (address, port)
 
 addr_list = []
-for i in range(4):
+for i in range(7):
     addr_list.append(process_info(i))
 # Initialize the process information: process number, host address, and IP
 # address
@@ -172,6 +199,7 @@ def write_to_file(name, text):
     log_file.write(text+'\r\n')
     log_file.close()
 
+
 # Assign a process ID to perform as the leader that enable total ordering
 leader_ID = 0
 # define a dictionary to store message with marker in the memory.
@@ -180,6 +208,11 @@ msg_memory = {}
 share_V= {'a':0,'b':0,'c':0,'d':0,'e':0,'f':0,'g':0,'h':0,'i':0,'j':0,
           'k':0,'l':0,'m':0,'n':0,'o':0,'p':0,'q':0,'r':0,'s':0,'t':0,
           'u':0,'v':0,'w':0,'x':0,'y':0,'z':0}
+# Define a queue to store all the valid input commands:
+Command_buff = queue.Queue()
+# Define a flag to indicate whether an operation at the client has been invoked
+invoke = True
+
 
 # bind socket to the ip address based on the config file
 s= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -197,5 +230,9 @@ else:
 deliver_thread= threading.Thread(target = Msg_deliver)
 deliver_thread.start()
 
+# one thread is used to process the commands from client in the buffer
+client_thread= threading.Thread(target = client_to_file, args=(s,))
+client_thread.start()
+
 # the main program is used for clinet to take input message and process it
-Total_order_send_to_leader(s, leader_ID)
+Total_order_send_to_leader()
