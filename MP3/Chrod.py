@@ -138,9 +138,6 @@ while P_ID not in PID_pool:
 
 print('The process number selected is: {}'.format(P_ID))
 
-
-pdb.set_trace()
-
 # Bind node to a socket and use one thread to listen messages
 identifier = P_ID
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -157,13 +154,36 @@ keys = []
 if P_ID == 0:
     for i in range(8):
         FT_start.append(P_ID + 2**i)
-    FT_succ
+    FT_succ=[1,100,100,100,100,100,100,200]
+    keys.append(0)
+    for i in range(201,256):
+        keys.append(i)
 
-for i in range(255):
-    all_keys.append(i)
+elif P_ID ==1:
+    for i in range(8):
+        FT_start.append(P_ID + 2**i)
+    FT_succ=[100,100,100,100,100,100,100,200]
+    keys.append(1)
+
+elif P_ID ==2:
+    for i in range(8):
+        FT_start.append(100 + 2**i)
+    FT_succ=[200,200,200,200,200,200,200,0]
+    for i in range(2,101):
+        keys.append(i)
+
+elif P_ID ==3:
+    for i in range(8):
+        FT_start.append((200 + 2**i)%2**8)
+    FT_succ=[0,0,0,0,0,0,100,100]
+    for i in range(101,201):
+        keys.append(i)
 
 
-# bind socket to the ip address based on the config file
-client_socket= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-client_socket.bind(addr_list[-1])
-client_execute(client_socket)
+print ('\nFT_start for P_ID %2d:'%P_ID)
+print (FT_start)
+print ('\nFT_succ for P_ID %2d:n'%P_ID)
+print (FT_succ)
+print ('\nKeys for P_ID %2d:\n'%P_ID)
+print (keys)
+
