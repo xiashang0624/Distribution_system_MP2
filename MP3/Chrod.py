@@ -34,22 +34,32 @@ def Node_listen(node_socket):
 
 
 
-
-
-
-
-
-def client_input():
+# Client input: depending on the input format,
+# delay function embedded.
+def Client_input():
     while True:
-        message = input('input your command:\n')
+        message = input('Client: enter command here:\n')
         msg = message.split()
-        if msg[0] == 'exit':
-            print('manually exit ')
-            exit()
-        elif msg[0] in {'crash',  'join', 'show'}:
-            operation_buffer.append(msg)
+        if not msg:
+            print('Error input, input should use the following format: find/join/crash + node + (key)')
+            pass
         else:
-            print('Invalid input')
+            command= msg[0]
+            if command == 'get' and len(msg)==2 and msg[1] in share_V: # write the get command to log file and broadcast
+                Command_buff.put(message)
+            elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
+                Command_buff.put(message)
+            elif command == 'delay' and len(msg) == 2:        # put the stdin sleep
+                Command_buff.put(message)
+            elif command == 'dump' and len(msg) == 1:    # print all the key-value pairs in shared memory
+                Command_buff.put(message)
+            else:
+                print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
+                pass
+
+
+
+
 
 
 def client_execute(s):
@@ -184,37 +194,15 @@ elif P_ID ==3:
         keys.append(i)
 
 
-print ('\nFT_start for P_ID %2d:'%P_ID)
+print ('\nFT_start for P_ID %2d:'%Node_ID)
 print (FT_start)
-print ('\nFT_succ for P_ID %2d:n'%P_ID)
+print ('\nFT_succ for P_ID %2d:'%Node_ID)
 print (FT_succ)
-print ('\nKeys for P_ID %2d:\n'%P_ID)
+print ('\nKeys for P_ID %2d:\n'%Node_ID)
 print (keys)
 
 
-# Client input: depending on the input format, initilize total order-multicast with a
-# delay function embedded.
-def Client_input():
-    while True:
-        message = input('Client: enter command here:\n')
-        msg = message.split()
-        if not msg:
-            print('Error input, input should use the following format: find/dump + node + key')
-            pass
-        else:
-            command= msg[0]
-            if command == 'get' and len(msg)==2 and msg[1] in share_V: # write the get command to log file and broadcast
-                Command_buff.put(message)
-            elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
-                Command_buff.put(message)
-            elif command == 'delay' and len(msg) == 2:        # put the stdin sleep
-                Command_buff.put(message)
-            elif command == 'dump' and len(msg) == 1:    # print all the key-value pairs in shared memory
-                Command_buff.put(message)
-            else:
-                print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
-                pass
 
-
-
+# the main program is used for clinet to take input message and process it
+Client_input()
 
