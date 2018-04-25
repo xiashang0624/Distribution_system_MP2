@@ -90,13 +90,8 @@ def Delay(client_socket, target, message):
     delay_time = randint(min_delay, max_delay)/1000.0
     # set it to 0 to remove the delay mechanism
     time.sleep(delay_time)
-    client_socket.sendto(message.encode('utf-8'), addr_list[target])
+    client_socket.sendto(message.encode('utf-8'), target)
 
-
-# Unordered multi-cast
-def Multicast_unorder(client_socket, message):
-        for i in range(number_replica):
-            Unicast(client_socket, i, message)
 
 
 # **********Main**************
@@ -149,6 +144,30 @@ listen_thread = threading.Thread(target=Node_listen, args=(s,))
 listen_thread.start()
 
 
+# find the succ and pred
+def find_successor(id):
+    n_id, n_addr = find_predecessor(id)
+    return
+
+
+def find_predecessor(id):
+    n_id, n_addr= P_ID, addr_list[P_ID]
+    if not (n_id < id and n_id > FT_succ[0]):
+        n_id, n_addr = closet_preceding_finger(id)
+    # else:
+        # msg = 'find_pred,'+ str(id)
+        # Unicast(client_socket, n_id, msg)
+
+    return n_id, n_addr
+
+
+def closet_preceding_finger(id):
+    for i in range(7,-1):
+        if FT_succ[i] > P_ID and FT_succ[i] < id:
+            return FT_succ[i],
+    return n_id, n_addr
+
+
 # Initilize finger table and Keys
 FT_start = []
 FT_succ = []
@@ -158,9 +177,6 @@ if P_ID == 0:
     for i in range(8):
         FT_start.append(P_ID + 2**i)
     FT_succ
-
-for i in range(255):
-    all_keys.append(i)
 
 
 # bind socket to the ip address based on the config file
