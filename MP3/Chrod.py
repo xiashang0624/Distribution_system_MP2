@@ -87,7 +87,6 @@ def client_execute(s):
     # req_time = time.asctime().split()[3].replace(':', '')
     # print('dump ' + req_time)
 
-
 # ****************broadcast with delay***************
 # define a function to uni-cast
 def Unicast(client_socket, target, message):
@@ -100,13 +99,35 @@ def Delay(client_socket, target, message):
     delay_time = randint(min_delay, max_delay)/1000.0
     # set it to 0 to remove the delay mechanism
     time.sleep(delay_time)
-    client_socket.sendto(message.encode('utf-8'), addr_list[target])
+    client_socket.sendto(message.encode('utf-8'), target)
 
 
-# Unordered multi-cast
-def Multicast_unorder(client_socket, message):
-        for i in range(number_replica):
-            Unicast(client_socket, i, message)
+# ***************Chrod functions ********************************
+# find the succ and pred
+def find_successor(id):
+    n_id, n_addr = find_predecessor(id)
+    return
+
+
+def find_predecessor(id):
+    n_id, n_addr= P_ID, addr_list[P_ID]
+    if not (n_id < id and n_id > FT_succ[0]):
+        n_id, n_addr = closet_preceding_finger(id)
+    # else:
+        # msg = 'find_pred,'+ str(id)
+        # Unicast(client_socket, n_id, msg)
+
+    return n_id, n_addr
+
+
+def closet_preceding_finger(id):
+    for i in range(7,-1):
+        if FT_succ[i] > P_ID and FT_succ[i] < id:
+            return FT_succ[i],
+    return n_id, n_addr
+
+
+
 
 
 # **********Main**************
