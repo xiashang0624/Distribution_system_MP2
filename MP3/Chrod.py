@@ -154,6 +154,7 @@ keys = []
 if P_ID == 0:
     for i in range(8):
         FT_start.append(P_ID + 2**i)
+    Node_ID = 0
     FT_succ=[1,100,100,100,100,100,100,200]
     keys.append(0)
     for i in range(201,256):
@@ -162,12 +163,14 @@ if P_ID == 0:
 elif P_ID ==1:
     for i in range(8):
         FT_start.append(P_ID + 2**i)
+    Node_ID = 1
     FT_succ=[100,100,100,100,100,100,100,200]
     keys.append(1)
 
 elif P_ID ==2:
     for i in range(8):
         FT_start.append(100 + 2**i)
+    Node_ID = 100
     FT_succ=[200,200,200,200,200,200,200,0]
     for i in range(2,101):
         keys.append(i)
@@ -175,6 +178,7 @@ elif P_ID ==2:
 elif P_ID ==3:
     for i in range(8):
         FT_start.append((200 + 2**i)%2**8)
+    Node_ID = 200
     FT_succ=[0,0,0,0,0,0,100,100]
     for i in range(101,201):
         keys.append(i)
@@ -186,4 +190,31 @@ print ('\nFT_succ for P_ID %2d:n'%P_ID)
 print (FT_succ)
 print ('\nKeys for P_ID %2d:\n'%P_ID)
 print (keys)
+
+
+# Client input: depending on the input format, initilize total order-multicast with a
+# delay function embedded.
+def Client_input():
+    while True:
+        message = input('Client: enter command here:\n')
+        msg = message.split()
+        if not msg:
+            print('Error input, input should use the following format: find/dump + node + key')
+            pass
+        else:
+            command= msg[0]
+            if command == 'get' and len(msg)==2 and msg[1] in share_V: # write the get command to log file and broadcast
+                Command_buff.put(message)
+            elif command == 'put' and len(msg) == 3 and msg[1] in share_V:          # write the put command to log file and broadcast
+                Command_buff.put(message)
+            elif command == 'delay' and len(msg) == 2:        # put the stdin sleep
+                Command_buff.put(message)
+            elif command == 'dump' and len(msg) == 1:    # print all the key-value pairs in shared memory
+                Command_buff.put(message)
+            else:
+                print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
+                pass
+
+
+
 
