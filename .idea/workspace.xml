@@ -29,26 +29,13 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="Chord_XC.py" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/MP3/Chord_XC.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1157">
-              <caret line="167" column="23" lean-forward="true" selection-start-line="167" selection-start-column="23" selection-end-line="167" selection-end-column="23" />
-              <folding>
-                <element signature="e#0#30#0" expanded="true" />
-                <marker date="1524686710099" expanded="true" signature="3761:3797" ph="Select the p... " />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="Chrod.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="Chrod.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/MP3/Chrod.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="717">
-              <caret line="159" column="9" lean-forward="true" selection-start-line="159" selection-start-column="9" selection-end-line="159" selection-end-column="9" />
+            <state relative-caret-position="2152">
+              <caret line="215" column="0" lean-forward="true" selection-start-line="0" selection-start-column="0" selection-end-line="229" selection-end-column="0" />
               <folding>
-                <marker date="1524685275564" expanded="true" signature="3930:3966" ph="Select the p... " />
+                <marker date="1524688105627" expanded="true" signature="5184:5220" ph="Select the p... " />
               </folding>
             </state>
           </provider>
@@ -104,7 +91,7 @@
   </component>
   <component name="ProjectFrameBounds">
     <option name="x" value="-14" />
-    <option name="width" value="2118" />
+    <option name="width" value="1948" />
     <option name="height" value="2074" />
   </component>
   <component name="ProjectView">
@@ -132,12 +119,7 @@
             <path>
               <item name="Distribution_system_MP2" type="b2602c69:ProjectViewProjectNode" />
               <item name="Distribution_system_MP2" type="462c0819:PsiDirectoryNode" />
-              <item name="MP1" type="462c0819:PsiDirectoryNode" />
-            </path>
-            <path>
-              <item name="Distribution_system_MP2" type="b2602c69:ProjectViewProjectNode" />
-              <item name="Distribution_system_MP2" type="462c0819:PsiDirectoryNode" />
-              <item name="MP2" type="462c0819:PsiDirectoryNode" />
+              <item name="MP3" type="462c0819:PsiDirectoryNode" />
             </path>
           </expand>
           <select />
@@ -246,7 +228,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-14" y="0" width="2118" height="2074" extended-state="0" />
+    <frame x="-14" y="0" width="1948" height="2074" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3295063" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -255,7 +237,7 @@
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33467278" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32215908" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3289773" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.04508612" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.10698448" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Docker" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3299356" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="SciView" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -622,23 +604,22 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/MP3/Chrod.py">
+    <entry file="file://$PROJECT_DIR$/MP3/Chord_XC.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="717">
-          <caret line="159" column="9" lean-forward="true" selection-start-line="159" selection-start-column="9" selection-end-line="159" selection-end-column="9" />
+        <state relative-caret-position="797">
+          <caret line="236" column="0" lean-forward="true" selection-start-line="236" selection-start-column="0" selection-end-line="236" selection-end-column="0" />
           <folding>
-            <marker date="1524685275564" expanded="true" signature="3930:3966" ph="Select the p... " />
+            <marker date="1524695883948" expanded="true" signature="6238:6274" ph="Select the p... " />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/MP3/Chord_XC.py">
+    <entry file="file://$PROJECT_DIR$/MP3/Chrod.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1157">
-          <caret line="167" column="23" lean-forward="true" selection-start-line="167" selection-start-column="23" selection-end-line="167" selection-end-column="23" />
+        <state relative-caret-position="2152">
+          <caret line="215" column="0" lean-forward="true" selection-start-line="0" selection-start-column="0" selection-end-line="229" selection-end-column="0" />
           <folding>
-            <element signature="e#0#30#0" expanded="true" />
-            <marker date="1524686710099" expanded="true" signature="3761:3797" ph="Select the p... " />
+            <marker date="1524688105627" expanded="true" signature="5184:5220" ph="Select the p... " />
           </folding>
         </state>
       </provider>
