@@ -7,16 +7,7 @@ import pdb
 # 1. node_0.server().  node_0 initialed to hold all the keys, and every other nodes joined later
 #    knows how to connect with node_0
 # 2. client_input(), waiting for input from the keyboard
-# 3. client_execute(), execute the command from buffer one by one
-# 4. if node_n joined later,  node_n.server() should run all the time before it is crashed.
 
-Command_buff = []
-receive_buffer = []
-'''
-    ch_node represents a peer in the network
-'''
-
-global flag
 # *************** Listen and responding ****************
 # following part is replica_server to listen any operations for modifying the replica
 def Node_listen(node_socket):
@@ -33,8 +24,8 @@ def Node_listen(node_socket):
                 # here is to process message with command "initialize id
                 # succ_node" in node join operation
                 print (msg)
-                id, succ_node = int(msg[1]), int(msg[2])
-                node_initialize(id, succ_node)
+                id, succ_node_str = int(msg[1]), msg[2:]
+                node_initialize(id, succ_node_str)
                 print ("join operation is finished")
         except:
             pass
@@ -184,43 +175,57 @@ def closest_preceding_finger(id):
 def join_node(id):
     global ip_pair
     nn_pre, nn_succ = find_successor(id)
-    message = 'initialize ' + str(id) + ' ' + str(nn_succ)
     # assign new ip address to the new node id and update ip_pair
     new_pid = len(ip_pair)
     ip_pair[id] = new_pid
-    Unicast(s, addr_list[new_pid], message)
 
+    new_FT_start = []
+    new_FT_succ = []
+    for i in range(8):
+        new_FT_start.append((id + 2**i)%(2**8))
+    new_FT_succ.append(nn_succ)
+
+    for i in range(7):
+        if new_FT_succ[i] < id:
+            cond = new_FT_start[i+1] >= id or new_FT_start[i+1] < new_FT_succ[i]
+        elif new_FT_succ[i] > id:
+            cond = new_FT_start[i+1] >= id and new_FT_start[i+1] < new_FT_succ[i]
+        else:
+            cond = True
+        print (cond)
+        if cond:
+            new_FT_succ.append(new_FT_succ[i])
+        else:
+            new_pre, new_succ = find_successor(new_FT_start[i+1])
+            if new_succ > id or new_succ ==0:
+                new_FT_succ.append(id)
+            else:
+                new_FT_succ.append(new_succ)
+    print (new_FT_succ)
+    print (new_FT_start)
+
+    node_str = ''
+    for i in new_FT_succ:
+        node_str += ' ' + str(i)
+    message = 'initialize ' + str(id) + node_str
+    print (message)
+    Unicast(s, addr_list[new_pid], message)
     return nn_pre, nn_succ
 
 
-def node_initialize(id, succ_node):
+def node_initialize(id, node_str):
     # initialize the node after joining into the Chord system using the sudo
     # code from the original paper
     global FT_start
     global FT_succ
     global Keys
     global node_ID
+    print ("start initializa")
     node_ID = id
     for i in range(8):
         FT_start.append((node_ID + 2**i)%(2**8))
-    FT_succ.append(succ_node)
+        FT_succ.append(int(node_str[i]))
     print (node_ID)
-    print (FT_start)
-    print (FT_succ)
-    for i in range(7):
-        if FT_succ[i] < node_ID:
-            cond = FT_start[i+1] >= node_ID or FT_start[i+1] < FT_succ[i]
-        elif FT_succ[i] > node_ID:
-            cond = FT_start[i+1] >= node_ID and FT_start[i+1] < FT_succ[i]
-        else:
-            cond = True
-        print (cond)
-        if cond:
-            FT_succ.append(FT_succ[i])
-        else:
-            new_pre, new_succ = find_successor(FT_start[i+1])
-            FT_succ.append(new_succ)
-
     print ("node initialization is done!!!")
     print ("FT_start is:")
     print (FT_start)
