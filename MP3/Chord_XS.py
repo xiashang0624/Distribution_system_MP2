@@ -23,17 +23,19 @@ def Node_listen(node_socket):
     while True:
         try:
             recieve_msg,addr = node_socket.recvfrom(1024)
-            receive_src = addr[-1] % 100
             receive_str = recieve_msg.decode('utf-8')
             msg = receive_str.split()
-            operata = msg[0]
-            # recv_time = time.asctime().strip().split()[3]
-            if operata == 'find_response':
+            command = msg[0]
+            if command == 'find_pred_routing':
                 receive_buffer.append(receive_str)
 
-            if operata == 'find_predecessor':
-                msg = 'find_predecessor ' + str(id) + ' ' + str(P_ID) + ' ' + addr_lookup[P_ID]
-                find_response(int(msg[1]), int(msg[2]), msg[3])
+            if command == 'initialize':
+                # here is to process message with command "initialize id
+                # succ_node" in node join operation
+                print (msg)
+                id, succ_node = int(msg[1]), int(msg[2])
+                node_initialize(id, succ_node)
+                print ("join operation is finished")
         except:
             pass
 
@@ -57,7 +59,12 @@ def Client_input():
             pass
         else:
             command= msg[0]
-            if command == 'find' and len(msg)==3: # write the get command to log file and broadcast
+            if command == 'join' and len(msg)==2: # write the get command to log file and broadcast
+                print ('join command issued: ' + message)
+                id = int(msg[1])
+                target_node, succ_node = join_node(id)
+                print ('The pred node is: %2d and the succ node is: %2d' % (target_node, succ_node))
+            elif command == 'find' and len(msg)==3: # write the get command to log file and broadcast
                 print ('find command issued: ' + message)
             else:
                 print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
@@ -102,40 +109,123 @@ def Delay(client_socket, target, message):
     # set it to 0 to remove the delay mechanism
     time.sleep(delay_time)
     client_socket.sendto(message.encode('utf-8'), target)
+    print ("join message has been sent via socket!!!")
+    print (message)
+    print (target)
 
 
 # ***************Chrod functions ********************************
 # find the succ and pred
 def find_successor(id):
-    n_id, n_addr = find_predecessor(id, P_ID, addr_lookup[P_ID])
-    return n_id, n_addr
+    nn_pre, nn_succ= find_predecessor(id)
+    return nn_pre, nn_succ
 
 
-def find_predecessor(id, src_id, src_addr):
-    n_id, n_addr= P_ID, addr_list[P_ID]
-    if not (n_id < id and n_id >= FT_succ[0]):
-        # to verify if it is between two consecutive node
-        n_id, n_addr = closest_preceding_finger(id)
-        msg = 'find_predecessor '+str(id) + ' ' + str(src_id) + ' ' + src_addr
-        Unicast(s, n_addr, msg)
-        flag = True
-        while(flag):
-            time.sleep(0.05)
-        n_id, n_addr = receive_buffer.pop()
-    if src_id == P_ID:
-        return n_id, n_addr
+def find_predecessor(id):
+    global wait_flag
+    global recv_nn_id, recv_nn_succ
+    nn_id, nn_succ= node_ID, FT_succ[0]
+    # check if id is in the range between nn_id and nn_succ
+    if nn_succ < nn_id:
+        cond = id > nn_id or id <= nn_succ
+    elif nn_succ > nn_id:
+        cond = id > nn_id and id <= nn_succ
     else:
-        response = 'find_response ' + str(n_id) + ' ' + str(n_addr)
-        Unicast(s, src_addr, response)
+        cond = True
+
+    if cond:
+        print ('predecessor for id: %2d is found. Node id is: %2d '
+               % (id, node_ID))
+        return nn_id, nn_succ
+    else:
+        # look through the finger table at node nn_id
+        nn_id = closest_preceding_finger(id)
+        message = 'find_predecessor ' + str(nn_id) +' ' + str(id) + ' from ' + str(node_ID)
+        wait_flag = True
+        Unicast(s, addr_list[ip_pair[node_ID]], message)
+        while wait_flag:
+            time.sleep(0.1)
+        return recv_nn_id, recv_nn_succ
+
+
+def find_predecessor_routing(id):
+    nn_id, nn_succ= node_ID, FT_succ[0]
+    # check if id is in the range between nn_id and nn_succ
+    if nn_succ < nn_id:
+        cond = id > nn_id or id <= nn_succ
+    elif nn_succ > nn_id:
+        cond = id > nn_id and id <= nn_succ
+    else:
+        cond = True
+
+    if cond:
+        print ('predecessor for id: %2d is found. Node id is: %2d '
+               % (id, node_ID))
+        message = 'pred_and_succ found: '+ str(nn_id) + ' ' + 'nn_succ'
+        Unicast(s, addr_list[0], message)
+    else:
+        # look through the finger table at node nn_id
+        nn_id = closest_preceding_finger(id)
+        message = 'find_predecessor ' + str(nn_id) +' ' + str(id) + ' from ' + str(node_ID)
+        Unicast(s, addr_list[ip_pair[node_ID]], message)
 
 
 def closest_preceding_finger(id):
-    for i in range(7,-1):
-        if FT_succ[i] > P_ID and FT_succ[i] < id:
-            # gradually get close to the closest point
-            return FT_succ[i], addr_lookup[FT_succ[i]]
-    return P_ID, addr_lookup[P_ID]
+    for i in range(7, -1):
+        if id < node_ID:
+            cond = FT_succ[i] > node_ID or FT_succ[i] < id
+        else:
+            cond = FT_succ[i] > node_ID and FT_succ[i] < id
+        if cond:
+            return FT_succ[i]
+    return node_ID
 
+
+def join_node(id):
+    global ip_pair
+    nn_pre, nn_succ = find_successor(id)
+    message = 'initialize ' + str(id) + ' ' + str(nn_succ)
+    # assign new ip address to the new node id and update ip_pair
+    new_pid = len(ip_pair)
+    ip_pair[id] = new_pid
+    Unicast(s, addr_list[new_pid], message)
+
+    return nn_pre, nn_succ
+
+
+def node_initialize(id, succ_node):
+    # initialize the node after joining into the Chord system using the sudo
+    # code from the original paper
+    global FT_start
+    global FT_succ
+    global Keys
+    global node_ID
+    node_ID = id
+    for i in range(8):
+        FT_start.append((node_ID + 2**i)%(2**8))
+    FT_succ.append(succ_node)
+    print (node_ID)
+    print (FT_start)
+    print (FT_succ)
+    for i in range(7):
+        if FT_succ[i] < node_ID:
+            cond = FT_start[i+1] >= node_ID or FT_start[i+1] < FT_succ[i]
+        elif FT_succ[i] > node_ID:
+            cond = FT_start[i+1] >= node_ID and FT_start[i+1] < FT_succ[i]
+        else:
+            cond = True
+        print (cond)
+        if cond:
+            FT_succ.append(FT_succ[i])
+        else:
+            new_pre, new_succ = find_successor(FT_start[i+1])
+            FT_succ.append(new_succ)
+
+    print ("node initialization is done!!!")
+    print ("FT_start is:")
+    print (FT_start)
+    print ("FT_succ is:")
+    print (FT_succ)
 
 # **********Main**************
 # get the process IP and port info based on the selected number
@@ -184,61 +274,32 @@ listen_thread = threading.Thread(target=Node_listen, args=(s,))
 listen_thread.start()
 
 
+# define some global variables in each node
 # Initilize finger table and Keys
 FT_start = []
 FT_succ = []
-keys = []
-
+Keys = []
+ip_pair = {} # a dictionary to save the node_ID-P_ID pairs
 FT_interval = [] # function as 'mod' to finger table
 
-addr_lookup = {}
-addr_lookup[0] = addr_list[0]
-addr_lookup[1] = addr_list[1]
-addr_lookup[100] = addr_list[2]
-addr_lookup[200] = addr_list[3]
-
 if P_ID == 0:
+    node_ID = 0
+    ip_pair[node_ID] = P_ID
     for i in range(8):
-        FT_start.append(P_ID + 2**i)
-    Node_ID = 0
-    FT_succ=[1,100,100,100,100,100,100,200]
-    keys.append(0)
-    for i in range(201,256):
-        keys.append(i)
-
-elif P_ID ==1:
-    for i in range(8):
-        FT_start.append(P_ID + 2**i)
-    Node_ID = 1
-    FT_succ=[100,100,100,100,100,100,100,200]
-    keys.append(1)
-
-elif P_ID ==2:
-    for i in range(8):
-        FT_start.append(100 + 2**i)
-    Node_ID = 100
-    FT_succ=[200,200,200,200,200,200,200,0]
-    for i in range(2,101):
-        keys.append(i)
-
-elif P_ID ==3:
-    for i in range(8):
-        FT_start.append((200 + 2**i)%2**8)
-    Node_ID = 200
-    FT_succ=[0,0,0,0,0,0,100,100]
-    for i in range(101,201):
-        keys.append(i)
+        FT_start.append(node_ID + 2**i)
+    FT_succ=[0,0,0,0,0,0,0,0]
+    for i in range(1,256):
+        Keys.append(i)
+    Keys.append(0)
 
 
-print ('\nFT_start for P_ID %2d:'%Node_ID)
+wait_flag = False # wait flag to ensure only one message passing
+recv_nn_id, recv_nn_succ = 0,0  # update the target node id and succ of the node id
+
+
 print (FT_start)
-print ('\nFT_succ for P_ID %2d:'%Node_ID)
-print (FT_succ)
-print ('\nKeys for P_ID %2d:\n'%Node_ID)
-print (keys)
-
-
-
+print (Keys)
 # the main program is used for clinet to take input message and process it
-Client_input()
+if P_ID== 0:
+    Client_input()
 
