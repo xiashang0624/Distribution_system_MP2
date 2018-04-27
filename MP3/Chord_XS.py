@@ -92,6 +92,8 @@ def Client_input():
                 print ('The pred node is: %2d and the succ node is: %2d' % (target_node, succ_node))
             elif command == 'find' and len(msg)==3: # write the get command to log file and broadcast
                 print ('find command issued: ' + message)
+            elif command == 'FT_succ':
+                print (FT_succ)
             else:
                 print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
                 pass
@@ -241,7 +243,7 @@ def join_node(id):
             new_FT_succ.append(new_FT_succ[i])
         else:
             new_pre, new_succ = find_successor(new_FT_start[i+1])
-            if new_succ > id or new_succ ==0:
+            if (new_succ-id)%2**8 > (node_ID-id)%2**8:
                 new_FT_succ.append(id)
             else:
                 new_FT_succ.append(new_succ)
@@ -287,11 +289,12 @@ def Update_others(id):
     for i in range(8):
         print ("update start:")
         print (i)
-        p = find_predecessor((id - 2**i) % 2**8)
+        p,p_succ = find_predecessor((id - 2**i) % 2**8)
         print ("check alskdjflaskdjf")
         print (p)
-        message = 'update_finger_table ' + str(id) + ' ' + str(i)
-        Unicast(s, addr_list[ip_pair[p]], message)
+        if p != node_ID:
+            message = 'update_finger_table ' + str(id) + ' ' + str(i)
+            Unicast(s, addr_list[ip_pair[p]], message)
 
 def update_finger_table(s, i, message):
     global FT_succ
@@ -303,6 +306,7 @@ def update_finger_table(s, i, message):
         cond = True
     if cond:
         FT_succ[i] = s
+        print ("change FT_succ of i = %2d to node %2d"%(i, s))
         pred_node = node_pred(node_ID)
         if pred_node != node_ID:
             Unicast(s, addr_list[ip_pair[pred_node]], message)
@@ -394,6 +398,5 @@ recv_nn_id, recv_nn_succ = 0,0  # update the target node id and succ of the node
 print (FT_start)
 print (Keys)
 # the main program is used for clinet to take input message and process it
-if P_ID== 0:
-    Client_input()
+Client_input()
 
