@@ -28,7 +28,6 @@ def Node_listen(node_socket):
                 find_predecessor_routing(id, root)
 
             elif command == 'pred_and_succ_found':
-                print ('asldkvjaskdjfla')
                 recv_nn_id, recv_nn_succ = int(msg[1]), int(msg[2])
                 find_pred_flag = False
 
@@ -98,29 +97,6 @@ def Client_input():
                 pass
 
 
-def client_execute(s):
-    input_thread = threading.Thread(target=Client_input, args=(s))
-    input_thread.start()
-    while True:
-        if len(Command_buff) != 0:
-            msg = Command_buff.pop(0)
-            if msg[0] == 'crash':
-                Unicast(s, msg[1], msg[0])
-            elif msg[0] == 'show':
-                if msg[1] == 'all':
-                    for i in range(32):
-                        Unicast(s,i,msg[0])
-                # send show command to all nodes
-                else:
-                    Unicast(s,i,msg[0])
-                # send show command to node p
-            elif msg[0] == 'join':
-                pass
-                # create a new peer
-        time.sleep(0.05)
-
-
-
 # ****************unicast with delay***************
 # define a function to uni-cast
 def Unicast(client_socket, target, message, No_delay = False):
@@ -172,7 +148,7 @@ def find_predecessor(id):
         Unicast(s, addr_list[ip_pair[nn_id]], message)
         while find_pred_flag:
             time.sleep(0.1)
-        print ("check alskdjflaksjdflakjsdlfkajsdlfkjasldkfj")
+        print ("find predecessor lock is released!!!")
         return recv_nn_id, recv_nn_succ
 
 
