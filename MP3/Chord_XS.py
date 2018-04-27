@@ -12,6 +12,8 @@ import pdb
 # following part is replica_server to listen any operations for modifying the replica
 def Node_listen(node_socket):
     global wait_flag
+    global ip_pair
+
     while True:
         try:
             recieve_msg,addr = node_socket.recvfrom(1024)
@@ -31,6 +33,11 @@ def Node_listen(node_socket):
 
             if command == 'node_join_done':
                 wait_flag = False
+
+            if command == 'add_ip_pair':
+                ip_pair[int(msg[1])] = int(msg[2])
+                print ('update ip_pair')
+                print (ip_pair)
         except:
             pass
 
@@ -91,26 +98,26 @@ def client_execute(s):
                 # create a new peer
         time.sleep(0.05)
 
-    # show current time
-    # req_time = time.asctime().split()[3].replace(':', '')
-    # print('dump ' + req_time)
 
-# ****************broadcast with delay***************
+
+# ****************unicast with delay***************
 # define a function to uni-cast
-def Unicast(client_socket, target, message):
-    send_thread = threading.Thread(target = Delay, args = (client_socket, target, message,))
+def Unicast(client_socket, target, message, No_delay = False):
+    send_thread = threading.Thread(target = Delay, args = (client_socket, target, message, No_delay,))
     send_thread.start()
 
 
 # implement the delay mechanism
-def Delay(client_socket, target, message):
+def Delay(client_socket, target, message, No_delay = False):
     delay_time = randint(min_delay, max_delay)/1000.0
     # set it to 0 to remove the delay mechanism
+    if No_delay:
+        delay_time = 0
     time.sleep(delay_time)
     client_socket.sendto(message.encode('utf-8'), target)
     print ("join message has been sent via socket!!!")
     print (message)
-    print (target)
+    #print (target)
 
 
 # ***************Chrod functions ********************************
@@ -187,7 +194,13 @@ def join_node(id):
     # assign new ip address to the new node id and update ip_pair
     new_pid = len(ip_pair)
     ip_pair[id] = new_pid
+    # here I simply use multicast to update the ip-pair variable across all
+    # nodes.
+    message = 'add_ip_pair ' + str(id) + ' ' + str(new_pid)
+    for i in range (1,32):
+        Unicast(s, addr_list[i], message, No_delay = True)
 
+    # update figer table for new node
     new_FT_start = []
     new_FT_succ = []
     for i in range(8):
@@ -236,12 +249,22 @@ def node_initialize(id, node_str):
         FT_start.append((node_ID + 2**i)%(2**8))
         FT_succ.append(int(node_str[i]))
     print (node_ID)
-    Unicast(s, addr_list[0], 'node_join_done')
     print ("node initialization is done!!!")
     print ("FT_start is:")
     print (FT_start)
     print ("FT_succ is:")
     print (FT_succ)
+
+    # update the finger tables in the other nodes
+    Update_others(node_ID)
+
+
+    Unicast(s, addr_list[0], 'node_join_done')
+
+def Update_others(id):
+    for i in range(8):
+        p = find_predecessor((id - 2**i) % 2**8)
+
 
 # **********Main**************
 # get the process IP and port info based on the selected number
@@ -298,9 +321,10 @@ Keys = []
 ip_pair = {} # a dictionary to save the node_ID-P_ID pairs
 FT_interval = [] # function as 'mod' to finger table
 
+ip_pair[0] = 0 # here we use the 0 process to bind node id 0
+
 if P_ID == 0:
     node_ID = 0
-    ip_pair[node_ID] = P_ID
     for i in range(8):
         FT_start.append(node_ID + 2**i)
     FT_succ=[0,0,0,0,0,0,0,0]
