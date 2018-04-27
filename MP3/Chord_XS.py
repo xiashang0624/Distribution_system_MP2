@@ -54,15 +54,16 @@ def Node_listen(node_socket):
                 print ("start update_finger_table")
                 update_finger_table(s0, i0, receive_str)
 
+            elif command == 'find_node_key':
+                find_thread = threading.Thread(target = find_node_key, args=(int(msg[1]), ))
+                find_thread.start()
+
+            elif command == 'Find_key_done':
+                print ("find operation is done, the node that contains key " + msg[1]+ " is node "+ msg[2])
+
+
         except:
             pass
-
-
-def find_response(id, request_node_id, request_node_addr):
-    dest_id, dest_addr = find_predecessor(id, request_node_id, request_node_addr)
-    if dest_id == P_ID:
-        msg = 'find_response' + str(dest_id)+' ' + str(dest_addr)
-        Unicast(s, request_node_addr, msg)
 
 
 # ******************* Client ****************
@@ -78,7 +79,7 @@ def Client_input():
             pass
         else:
             command= msg[0]
-            if command == 'join' and len(msg)==2: # write the get command to log file and broadcast
+            if command == 'join' and len(msg)==2:
                 print ('join command issued: ' + message)
                 id = int(msg[1])
                 target_node, succ_node = join_node(id)
@@ -86,12 +87,20 @@ def Client_input():
                     time.sleep(0.1)
                 print ("node join has been done!")
                 print ('The pred node is: %2d and the succ node is: %2d' % (target_node, succ_node))
-            elif command == 'find' and len(msg)==3: # write the get command to log file and broadcast
+            elif command == 'find' and len(msg)==3:
                 print ('find command issued: ' + message)
-            elif command == 'FT_succ':
-                print (FT_succ)
-            elif command == 'FT_start':
+                ini_node, search_key = int(msg[1]), int(msg[2])
+                if ini_node in ip_pair:
+                    message = "find_node_key " + str(search_key)
+                    Unicast(s, addr_list[ip_pair[ini_node]], message)
+                else:
+                    print ('node %2d does not exist or has crashed' % ini_node)
+
+
+            elif command == 'FT':
+                print ("Finger table is: FT_start + FT_succ")
                 print (FT_start)
+                print (FT_succ)
             else:
                 print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
                 pass
@@ -256,16 +265,17 @@ def node_initialize(id, node_str):
 
     # update the finger tables in the other nodes
     Update_others(node_ID)
-
-
     Unicast(s, addr_list[0], 'node_join_done')
 
 def Update_others(id):
     for i in range(8):
         print ("update start:")
         print (i)
-        p,p_succ = find_predecessor((id - 2**i) % 2**8)
-        print ("check alskdjflaskdjf")
+        look_up_id = (id - 2**i) % 2**8
+        if look_up_id in ip_pair:
+            p = look_up_id
+        else:
+            p,p_succ = find_predecessor(look_up_id)
         print (p)
         if p != node_ID:
             message = 'update_finger_table ' + str(id) + ' ' + str(i)
@@ -297,6 +307,17 @@ def node_pred(node):
             pred, distance = key, new_distance
 
     return pred
+
+
+def find_node_key(id):
+    # find the pred and succ of the key id. The node number is node_succ
+    node_pre, node_succ = find_predecessor(id)
+    print ("finding result done!!!!")
+    print ("The node that contains the key %3d is node %3d"%(id, node_succ))
+    # send the message back to client at node 0
+    message = "Find_key_done " +str(id) + ' ' + str(node_succ)
+    Unicast(s, addr_list[0], message)
+
 
 
 
