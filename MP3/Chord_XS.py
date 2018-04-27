@@ -21,9 +21,10 @@ def Node_listen(node_socket):
             msg = receive_str.split()
             command = msg[0]
             if command == 'find_pred_routing':
-                receive_buffer.append(receive_str)
+                id, root = int(msg[2]), int(msg[4])
+                find_predecessor_routing(id, root)
 
-            if command == 'initialize':
+            elif command == 'initialize':
                 # here is to process message with command "initialize id
                 # succ_node" in node join operation
                 print (msg)
@@ -31,13 +32,21 @@ def Node_listen(node_socket):
                 node_initialize(id, succ_node_str)
                 print ("join operation is finished")
 
-            if command == 'node_join_done':
+            elif command == 'node_join_done':
                 wait_flag = False
 
-            if command == 'add_ip_pair':
+            elif command == 'add_ip_pair':
                 ip_pair[int(msg[1])] = int(msg[2])
                 print ('update ip_pair')
                 print (ip_pair)
+
+            elif command == 'update_finger_table':
+                s, i = int(msg[1]), int(msg[2])
+                update_finger_table(s, i, receive_str)
+
+
+
+
         except:
             pass
 
@@ -146,15 +155,15 @@ def find_predecessor(id):
     else:
         # look through the finger table at node nn_id
         nn_id = closest_preceding_finger(id)
-        message = 'find_predecessor ' + str(nn_id) +' ' + str(id) + ' from ' + str(node_ID)
+        message = 'find_pred_routing ' + str(nn_id) +' ' + str(id) + ' from ' + str(node_ID)
         wait_flag = True
-        Unicast(s, addr_list[ip_pair[node_ID]], message)
+        Unicast(s, addr_list[ip_pair[nn_id]], message)
         while wait_flag:
             time.sleep(0.1)
         return recv_nn_id, recv_nn_succ
 
 
-def find_predecessor_routing(id):
+def find_predecessor_routing(id, root_id):
     nn_id, nn_succ= node_ID, FT_succ[0]
     # check if id is in the range between nn_id and nn_succ
     if nn_succ < nn_id:
@@ -168,16 +177,16 @@ def find_predecessor_routing(id):
         print ('predecessor for id: %2d is found. Node id is: %2d '
                % (id, node_ID))
         message = 'pred_and_succ found: '+ str(nn_id) + ' ' + 'nn_succ'
-        Unicast(s, addr_list[0], message)
+        Unicast(s, addr_list[ip_pair[root]], message)
     else:
         # look through the finger table at node nn_id
         nn_id = closest_preceding_finger(id)
-        message = 'find_predecessor ' + str(nn_id) +' ' + str(id) + ' from ' + str(node_ID)
-        Unicast(s, addr_list[ip_pair[node_ID]], message)
+        message = 'find_pred_routing ' + str(nn_id) +' ' + str(id) + ' from ' + str(node_ID)
+        Unicast(s, addr_list[ip_pair[nn_id]], message)
 
 
 def closest_preceding_finger(id):
-    for i in range(7, -1):
+    for i in range(7, -1, -1):
         if id < node_ID:
             cond = FT_succ[i] > node_ID or FT_succ[i] < id
         else:
@@ -263,7 +272,39 @@ def node_initialize(id, node_str):
 
 def Update_others(id):
     for i in range(8):
+        print ("update start:")
+        print (i)
         p = find_predecessor((id - 2**i) % 2**8)
+        print ("check alskdjflaskdjf")
+        print (p)
+        message = 'update_finger_table ' + str(id) + ' ' + str(i)
+        Unicast(s, addr_list[ip_pair[p]], message)
+
+def update_finger_table(s, i, message):
+    global FT_succ
+    if FT_succ[i] < node_ID:
+        cond = s >= node_ID or s < FT_succ[i]
+    elif FT_succ[i] > node_ID:
+        cond = s >= FT_succ[i] and s < node_ID
+    else:
+        cond = True
+    if cond:
+        FT_succ[i] = s
+        pred_node = node_pred(node_ID)
+        if pred_node != node_ID:
+            Unicast(s, addr_list[ip_pair[pred_node]], message)
+
+
+def node_pred(node):
+    pred = node
+    distance = 256
+    for key, value in ip_pair.items():
+        new_distance = (node - key) % 2**8
+        if  new_distance < distance:
+            pred, distance = key, new_distance
+
+    return pred
+
 
 
 # **********Main**************
