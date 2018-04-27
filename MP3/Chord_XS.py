@@ -51,12 +51,9 @@ def Node_listen(node_socket):
                 print (ip_pair)
 
             elif command == 'update_finger_table':
-                s, i = int(msg[1]), int(msg[2])
+                s0, i0 = int(msg[1]), int(msg[2])
                 print ("start update_finger_table")
-                update_finger_table(s, i, receive_str)
-
-
-
+                update_finger_table(s0, i0, receive_str)
 
         except:
             pass
@@ -94,6 +91,8 @@ def Client_input():
                 print ('find command issued: ' + message)
             elif command == 'FT_succ':
                 print (FT_succ)
+            elif command == 'FT_start':
+                print (FT_start)
             else:
                 print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
                 pass
@@ -196,7 +195,7 @@ def find_predecessor_routing(id, root_id):
     else:
         # look through the finger table at node nn_id
         nn_id = closest_preceding_finger(id)
-        message = 'find_pred_routing ' + str(nn_id) +' ' + str(id) + ' from ' + str(node_ID)
+        message = 'find_pred_routing ' + str(nn_id) +' ' + str(id) + ' from ' + str(root_id)
         Unicast(s, addr_list[ip_pair[nn_id]], message)
 
 
@@ -243,7 +242,7 @@ def join_node(id):
             new_FT_succ.append(new_FT_succ[i])
         else:
             new_pre, new_succ = find_successor(new_FT_start[i+1])
-            if (new_succ-id)%2**8 > (node_ID-id)%2**8:
+            if (new_succ-new_FT_start[i+1])%2**8 > (id-new_FT_start[i+1])%2**8 or new_pre == new_succ:
                 new_FT_succ.append(id)
             else:
                 new_FT_succ.append(new_succ)
@@ -296,19 +295,20 @@ def Update_others(id):
             message = 'update_finger_table ' + str(id) + ' ' + str(i)
             Unicast(s, addr_list[ip_pair[p]], message)
 
-def update_finger_table(s, i, message):
+def update_finger_table(s0, i0, message):
     global FT_succ
-    if FT_succ[i] < node_ID:
-        cond = s >= node_ID or s < FT_succ[i]
-    elif FT_succ[i] > node_ID:
-        cond = s >= FT_succ[i] and s < node_ID
+    if FT_succ[i0] < node_ID:
+        cond = s0 >= node_ID or s0 < FT_succ[i0]
+    elif FT_succ[i0] > node_ID:
+        cond = s0 >= node_ID and s0 <FT_succ[i0]
     else:
         cond = True
     if cond:
-        FT_succ[i] = s
-        print ("change FT_succ of i = %2d to node %2d"%(i, s))
+        FT_succ[i0] = s0
+        print ("change FT_succ of i = %2d to node %2d"%(i0, s0))
         pred_node = node_pred(node_ID)
-        if pred_node != node_ID:
+        print ("pred_node of node id %2d is: %2d "%(node_ID, pred_node))
+        if pred_node != node_ID and pred_node!=s0:
             Unicast(s, addr_list[ip_pair[pred_node]], message)
 
 
@@ -317,7 +317,7 @@ def node_pred(node):
     distance = 256
     for key, value in ip_pair.items():
         new_distance = (node - key) % 2**8
-        if  new_distance < distance:
+        if  new_distance < distance and key != node:
             pred, distance = key, new_distance
 
     return pred
