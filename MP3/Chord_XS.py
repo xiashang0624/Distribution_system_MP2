@@ -11,6 +11,7 @@ import pdb
 # *************** Listen and responding ****************
 # following part is replica_server to listen any operations for modifying the replica
 def Node_listen(node_socket):
+    global wait_flag
     while True:
         try:
             recieve_msg,addr = node_socket.recvfrom(1024)
@@ -27,6 +28,9 @@ def Node_listen(node_socket):
                 id, succ_node_str = int(msg[1]), msg[2:]
                 node_initialize(id, succ_node_str)
                 print ("join operation is finished")
+
+            if command == 'node_join_done':
+                wait_flag = False
         except:
             pass
 
@@ -42,6 +46,7 @@ def find_response(id, request_node_id, request_node_addr):
 # Client input: depending on the input format,
 # delay function embedded.
 def Client_input():
+    global wait_flag
     while True:
         message = input('Client: enter command here:\n')
         msg = message.split()
@@ -54,6 +59,9 @@ def Client_input():
                 print ('join command issued: ' + message)
                 id = int(msg[1])
                 target_node, succ_node = join_node(id)
+                while wait_flag:
+                    time.sleep(0.1)
+                print ("node join has been done!")
                 print ('The pred node is: %2d and the succ node is: %2d' % (target_node, succ_node))
             elif command == 'find' and len(msg)==3: # write the get command to log file and broadcast
                 print ('find command issued: ' + message)
@@ -174,6 +182,7 @@ def closest_preceding_finger(id):
 
 def join_node(id):
     global ip_pair
+    global wait_flag
     nn_pre, nn_succ = find_successor(id)
     # assign new ip address to the new node id and update ip_pair
     new_pid = len(ip_pair)
@@ -208,7 +217,8 @@ def join_node(id):
     for i in new_FT_succ:
         node_str += ' ' + str(i)
     message = 'initialize ' + str(id) + node_str
-    print (message)
+    wait_flag = True
+    print ("start initiating new node %3d for process %2d" % (id, new_pid))
     Unicast(s, addr_list[new_pid], message)
     return nn_pre, nn_succ
 
@@ -226,6 +236,7 @@ def node_initialize(id, node_str):
         FT_start.append((node_ID + 2**i)%(2**8))
         FT_succ.append(int(node_str[i]))
     print (node_ID)
+    Unicast(s, addr_list[0], 'node_join_done')
     print ("node initialization is done!!!")
     print ("FT_start is:")
     print (FT_start)
