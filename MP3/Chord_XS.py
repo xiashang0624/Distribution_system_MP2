@@ -12,25 +12,35 @@ import pdb
 # following part is replica_server to listen any operations for modifying the replica
 def Node_listen(node_socket):
     global wait_flag
+    global find_pred_flag
     global ip_pair
+    global recv_nn_id, recv_nn_succ
 
     while True:
         try:
             recieve_msg,addr = node_socket.recvfrom(1024)
             receive_str = recieve_msg.decode('utf-8')
             msg = receive_str.split()
+            print (msg)
             command = msg[0]
             if command == 'find_pred_routing':
                 id, root = int(msg[2]), int(msg[4])
                 find_predecessor_routing(id, root)
 
+            elif command == 'pred_and_succ_found':
+                print ('asldkvjaskdjfla')
+                recv_nn_id, recv_nn_succ = int(msg[1]), int(msg[2])
+                find_pred_flag = False
+
+
             elif command == 'initialize':
                 # here is to process message with command "initialize id
                 # succ_node" in node join operation
+                print ('start node_initialize')
                 print (msg)
                 id, succ_node_str = int(msg[1]), msg[2:]
-                node_initialize(id, succ_node_str)
-                print ("join operation is finished")
+                init_thread = threading.Thread(target = node_initialize, args=(id, succ_node_str,))
+                init_thread.start()
 
             elif command == 'node_join_done':
                 wait_flag = False
@@ -42,6 +52,7 @@ def Node_listen(node_socket):
 
             elif command == 'update_finger_table':
                 s, i = int(msg[1]), int(msg[2])
+                print ("start update_finger_table")
                 update_finger_table(s, i, receive_str)
 
 
@@ -126,7 +137,7 @@ def Delay(client_socket, target, message, No_delay = False):
     client_socket.sendto(message.encode('utf-8'), target)
     print ("join message has been sent via socket!!!")
     print (message)
-    #print (target)
+    print (target)
 
 
 # ***************Chrod functions ********************************
@@ -137,7 +148,7 @@ def find_successor(id):
 
 
 def find_predecessor(id):
-    global wait_flag
+    global find_pred_flag
     global recv_nn_id, recv_nn_succ
     nn_id, nn_succ= node_ID, FT_succ[0]
     # check if id is in the range between nn_id and nn_succ
@@ -156,10 +167,11 @@ def find_predecessor(id):
         # look through the finger table at node nn_id
         nn_id = closest_preceding_finger(id)
         message = 'find_pred_routing ' + str(nn_id) +' ' + str(id) + ' from ' + str(node_ID)
-        wait_flag = True
+        find_pred_flag = True
         Unicast(s, addr_list[ip_pair[nn_id]], message)
-        while wait_flag:
+        while find_pred_flag:
             time.sleep(0.1)
+        print ("check alskdjflaksjdflakjsdlfkajsdlfkjasldkfj")
         return recv_nn_id, recv_nn_succ
 
 
@@ -176,8 +188,9 @@ def find_predecessor_routing(id, root_id):
     if cond:
         print ('predecessor for id: %2d is found. Node id is: %2d '
                % (id, node_ID))
-        message = 'pred_and_succ found: '+ str(nn_id) + ' ' + 'nn_succ'
-        Unicast(s, addr_list[ip_pair[root]], message)
+        message = 'pred_and_succ_found '+ str(nn_id) + ' ' + str(nn_succ)
+        print (ip_pair[root_id])
+        Unicast(s, addr_list[ip_pair[root_id]], message)
     else:
         # look through the finger table at node nn_id
         nn_id = closest_preceding_finger(id)
