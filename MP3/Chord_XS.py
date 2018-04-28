@@ -69,6 +69,21 @@ def Node_listen(node_socket):
                 print(FT_start)
                 print(FT_succ)
 
+            elif command == 'crash':
+                crash()
+
+            elif command == 'remove_ip_pair':
+                # remove the item with node id in ip-pair dictionary
+                remove_id = int(msg[1])
+                del ip_pair[remove_id]
+
+
+            elif command == 'crash_update_finger_table':
+                s0, i0, s0_succ = int(msg[1]), int(msg[2]), int(msg[3])
+                #crash_update_thread = threading.Thread(target = update_finger_table_crash, args=(s0, i0, s0_succ,))
+                #crash_update_thread.start()
+                update_finger_table_crash(s0, i0, s0_succ, receive_str)
+
             elif command == 'start_count':
                 send_count = 0
                 count_flag = True
@@ -110,6 +125,23 @@ def Client_input():
                     Unicast(s, addr_list[ip_pair[ini_node]], message)
                 else:
                     print ('node %2d does not exist or has crashed' % ini_node)
+
+            elif command == 'crash' and len(msg) == 2:
+                print('Crash command issued:' + message)
+                crash_node_id = int(msg[1])
+                Unicast(s, addr_list[ip_pair[crash_node_id]], message)
+                ### without detection ####
+                # update ip-pair of all connected nodes
+                # here I simply use multicast to update the ip-pair variable across all
+                # nodes.
+                del ip_pair[crash_node_id]
+                message = 'remove_ip_pair ' + str(crash_node_id)
+                for i in range (1,32):
+                    Unicast(s, addr_list[i], message, No_delay = True)
+
+                #### update the FT of all related nodes
+                Update_others_crash(crash_node_id, node_succ(crash_node_id))
+
 
 
             elif command == 'FT':
@@ -180,10 +212,15 @@ def find_predecessor(id):
     else:
         cond = True
 
+    if id == node_ID:
+        cond = True
+        nn_id, nn_succ = node_pred(node_ID), node_ID
+
     if cond:
         print ('predecessor for id: %2d is found. Node id is: %2d '
                % (id, node_ID))
         return nn_id, nn_succ
+
     else:
         # look through the finger table at node nn_id
         nn_id = closest_preceding_finger(id)
@@ -335,6 +372,7 @@ def update_finger_table(s0, i0, message):
 
 
 def node_pred(node):
+    # function to find the predessor node before the current node in ip-pair
     pred = node
     distance = 256
     for key, value in ip_pair.items():
@@ -342,6 +380,17 @@ def node_pred(node):
         if  new_distance < distance and key != node:
             pred, distance = key, new_distance
 
+    return pred
+
+
+def node_succ(node):
+    # function to find the succ node after the current node in ip-pair
+    pred = node
+    distance = 256
+    for key, value in ip_pair.items():
+        new_distance = (key-node) % 2**8
+        if  new_distance < distance and key != node:
+            pred, distance = key, new_distance
     return pred
 
 
@@ -355,6 +404,46 @@ def find_node_key(id):
     Unicast(s, addr_list[0], message)
 
 
+def crash():
+    # self-descruction, empty all global parameters
+    global FT_start
+    global FT_succ
+    global Keys
+    FT_start = []
+    FT_succ = []
+    Keys = []
+    #### remaining task: detection########
+    ### turn off hear-beat ########
+
+def Update_others_crash(id, id_succ):
+    for i in range(8):
+        print ("crash_update start:")
+        print (i)
+        look_up_id = (id - 2**i) % 2**8
+        if look_up_id in ip_pair:
+            p = look_up_id
+        else:
+            p,p_succ = find_predecessor(look_up_id)
+        print ('check point target crash id is %2d, message sent to %2d'%(id,p))
+        message = 'crash_update_finger_table ' + str(id) + ' ' + str(i) + '' + str(id_succ)
+        if p != node_ID:
+            print ('check point !!!!!!!!!')
+            Unicast(s, addr_list[ip_pair[p]], message)
+        else:
+            update_finger_table_crash(id, i, id_succ, message)
+
+
+def update_finger_table_crash(s0, i0, s0_succ, message):
+    global FT_succ
+    if FT_succ[i0] == s0:
+        cond = True
+    if cond:
+        FT_succ[i0] = s0_succ
+        print ("change FT_succ of i = %2d to node %2d"%(i0, s0_succ))
+        pred_node = node_pred(node_ID)
+        print ("pred_node of node id %2d is: %2d "%(node_ID, pred_node))
+        if pred_node != node_ID and pred_node!=s0:
+            Unicast(s, addr_list[ip_pair[pred_node]], message)
 
 
 # **********Main**************
