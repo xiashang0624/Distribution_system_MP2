@@ -87,11 +87,20 @@ def Node_listen(node_socket):
             elif command == 'start_count':
                 send_count = 0
                 count_flag = True
+
             elif command == 'end_count':
                 Unicast(s, addr_list[ip_pair[0]], 'count ' + str(node_ID) + ' ' + str(send_count))
                 count_flag = False
+
             elif command == 'count':
                 recv_all_count[int(msg[1])] = int(msg[2])
+
+            elif command == 'heart_beat':
+                echo_source = int(msg[1])
+
+
+
+
         except:
             pass
 
@@ -277,7 +286,8 @@ def closest_preceding_finger(id):
 
 def join_node(id):
     global ip_pair
-    global wait_flag
+    global wait_flag, Crash_flag
+
     nn_pre, nn_succ = find_successor(id)
     # assign new ip address to the new node id and update ip_pair
     new_pid = 0
@@ -286,6 +296,7 @@ def join_node(id):
             new_pid = nnid
     new_pid += 1
     ip_pair[id] = new_pid
+    #Crash_flag[id] = False
     # here I simply use multicast to update the ip-pair variable across all
     # nodes.
     message = 'add_ip_pair ' + str(id) + ' ' + str(new_pid)
@@ -334,9 +345,10 @@ def node_initialize(id, node_str):
     global FT_start
     global FT_succ
     global Keys
-    global node_ID
+    global node_ID, local_active_flag
     print ("start initializa")
     node_ID = id
+    local_active_flag = True # start sending heat-beat message to root
     for i in range(8):
         FT_start.append((node_ID + 2**i)%(2**8))
         FT_succ.append(int(node_str[i]))
@@ -420,10 +432,12 @@ def crash():
     # self-descruction, empty all global parameters
     global FT_start
     global FT_succ
-    global Keys
+    global Keys, local_active_flag
     FT_start = []
     FT_succ = []
     Keys = []
+    local_active_flag = False
+
     #### remaining task: detection########
     ### turn off hear-beat ########
 
@@ -456,6 +470,23 @@ def update_finger_table_crash(s0, i0, s0_succ, message):
         print ("pred_node of node id %2d is: %2d "%(node_ID, pred_node))
         if pred_node != node_ID and pred_node!=s0:
             Unicast(s, addr_list[ip_pair[pred_node]], message)
+
+
+
+def heart_beat_root():
+    global Crash_flag
+    while True:
+        for i,j in Crash_flag.items():
+            Unicast(s, addr_list[ip_pair[i]], 'heart_beat')
+        time.sleep(max_delay/1000.0)
+
+
+def heart_beat(node):
+    global local_active_flag
+    while True:
+        if local_active_flag:
+            Unicast(s, addr_list[0], 'heart_beat ' + str(node_ID))
+        time.sleep(max_delay*2/1000.0)
 
 
 # **********Main**************
@@ -503,8 +534,6 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.bind(addr_list[P_ID])
 listen_thread = threading.Thread(target=Node_listen, args=(s,))
 listen_thread.start()
-
-
 # define some global variables in each node
 # Initilize finger table and Keys
 FT_start = []
@@ -512,7 +541,13 @@ FT_succ = []
 Keys = []
 ip_pair = {} # a dictionary to save the node_ID-P_ID pairs
 FT_interval = [] # function as 'mod' to finger table
-Crash_flag = {}
+heart_beat_time= {} # dictionary to save timestamp for crash detection
+local_active_flag= False
+
+if P_ID != 0:
+    heart_beat_thread = threading.Thread(target=heart_beat, args=(s,))
+    heart_beat_thread.start()
+
 
 ip_pair[0] = 0 # here we use the 0 process to bind node id 0
 
