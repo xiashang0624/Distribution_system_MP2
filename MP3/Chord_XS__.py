@@ -1,5 +1,6 @@
 import socket, time, threading
 from random import randint
+import time
 import pdb
 
 # Chord protocol is to achieve p2p application under changing peer groups
@@ -15,6 +16,7 @@ def Node_listen(node_socket):
     global find_pred_flag
     global ip_pair
     global recv_nn_id, recv_nn_succ
+    global detect_flag
 
     while True:
         try:
@@ -30,7 +32,6 @@ def Node_listen(node_socket):
             elif command == 'pred_and_succ_found':
                 recv_nn_id, recv_nn_succ = int(msg[1]), int(msg[2])
                 find_pred_flag = False
-
 
             elif command == 'initialize':
                 # here is to process message with command "initialize id
@@ -61,6 +62,21 @@ def Node_listen(node_socket):
             elif command == 'Find_key_done':
                 print ("find operation is done, the node that contains key " + msg[1]+ " is node "+ msg[2])
 
+            elif command == 'crash':
+                if len(msg) == 2:
+                    crash(int(msg[1]))
+                elif len(msg) == 3:
+                    update_others_failure(int(msg[1]), int(msg[2]))
+
+            elif command == 'update_finger_table_failure':
+                update_finger_table_failure(int(msg[1]), int(msg[2]), receive_str)
+
+            elif command == 'detect_alive':
+                Unicast(s, addr, 'ack_alive')
+
+            elif command == 'ack_alive':
+                detect_flag = True
+
 
         except:
             pass
@@ -72,7 +88,8 @@ def Node_listen(node_socket):
 def Client_input():
     global wait_flag
     while True:
-        message = input('Client: enter command here:\n')
+        message = input('Cl'
+                        'ient: enter command here:\n')
         msg = message.split()
         if not msg:
             print('Error input, input should use the following format: find/join/crash + node + (key)')
@@ -96,6 +113,9 @@ def Client_input():
                 else:
                     print ('node %2d does not exist or has crashed' % ini_node)
 
+            elif command == 'crash' and len(msg) == 2:
+                print('Crash command issued:' + message)
+                Unicast(s, addr_list[ip_pair[int(msg[1])]], message)
 
             elif command == 'FT':
                 print ("Finger table is: FT_start + FT_succ")
@@ -267,16 +287,22 @@ def node_initialize(id, node_str):
     Update_others(node_ID)
     Unicast(s, addr_list[0], 'node_join_done')
 
+    heartbeat_thread = threading.Thread(target=detect, args=(,))
+    heartbeat_thread.start()
+
 def Update_others(id):
     for i in range(8):
         print ("update start:")
         print (i)
         look_up_id = (id - 2**i) % 2**8
+
         if look_up_id in ip_pair:
             p = look_up_id
         else:
             p,p_succ = find_predecessor(look_up_id)
         print (p)
+
+        # simplify by using addr_list[P_ID]
         if p != node_ID:
             message = 'update_finger_table ' + str(id) + ' ' + str(i)
             Unicast(s, addr_list[ip_pair[p]], message)
@@ -298,6 +324,7 @@ def update_finger_table(s0, i0, message):
             Unicast(s, addr_list[ip_pair[pred_node]], message)
 
 
+# simplify by using the global variable 'ip_pair' to find the predecessor, first node preceding n
 def node_pred(node):
     pred = node
     distance = 256
@@ -319,6 +346,80 @@ def find_node_key(id):
     Unicast(s, addr_list[0], message)
 
 
+def detect():
+
+    while True:
+        message = 'detect_alive'
+        Unicast(s, addr_list[ip_pair[FT_succ[0]]], message)
+        detect_flag = False
+        t_start = time.time()
+        while not detect_flag:
+            if time.time() - t_start > 3* (max_delay/1000):
+                crash_id = FT_succ[0]
+                print('detect a crash on node ' + str(crash_id))
+                temp_pred = node_pred(FT_succ[1])
+                while not temp_pred == crash_id:
+                    temp_pred = node_pred(temp_pred)
+                crash_succ = temp_pred
+                # update ip_pair
+                # update FT_succ
+                ip_pair.pop(crash_id)
+                FT_succ[FT_succ == crash_id] = crash_succ
+
+                message = 'crash ' + str(crash_id) + ' ' + str(crash_succ)
+                Unicast(s, addr_list[ip_pair[0]], message)
+                break
+            time.sleep(0.05)
+        time.sleep(detect_interval)
+
+
+def update_others_failure(crash_node_id, crash_succ_id):
+    for i in range(8):
+        print ("update start:")
+        print (i)
+        look_up_id = (crash_node_id - 2**i) % 2**8
+        if look_up_id in ip_pair:
+            p = look_up_id
+        else:
+            p,p_succ = find_predecessor(look_up_id)
+        print (p)
+        # simplify by using addr_list[P_ID]
+        if p != node_ID:
+            message = 'update_finger_table_failure ' + str(crash_node_id) + ' ' + str(i) + ' ' + str(crash_succ_id)
+            Unicast(s, addr_list[ip_pair[p]], message)
+
+
+def update_finger_table_failure(s0, i0, message):
+    global FT_succ
+
+    crash_succ = message[3]
+    # update FT and ip_pair
+    if FT_succ[i0] < node_ID:
+        cond = s0 >= node_ID or s0 < FT_succ[i0]
+    elif FT_succ[i0] > node_ID:
+        cond = s0 >= node_ID and s0 <FT_succ[i0]
+    else:
+        cond = True
+    # if cond:
+    #     FT_succ[i0] = s0
+    #     print ("change FT_succ of i = %2d to node %2d"%(i0, s0))
+    #     pred_node = node_pred(node_ID)
+    #     print ("pred_node of node id %2d is: %2d "%(node_ID, pred_node))
+    #     if pred_node != node_ID and pred_node!=s0:
+    #         Unicast(s, addr_list[ip_pair[pred_node]], message)
+
+
+def crash(id):
+    global FT_start
+    global FT_succ
+    global Keys
+    global ip_pair
+    if id == node_ID:
+        FT_start = []
+        FT_succ = []
+        Keys = []
+        ip_pair = {}
+        ip_pair[0] = 0
 
 
 # **********Main**************
@@ -336,6 +437,8 @@ with open('config.txt') as f:
 # save the min_delay and max_delay in two varibles
 min_delay, max_delay = content[0].strip().split()
 min_delay, max_delay = int(min_delay), int(max_delay)
+
+detect_interval = 1000
 
 # save the other information in the port_info list
 port_info = []
@@ -374,7 +477,6 @@ FT_start = []
 FT_succ = []
 Keys = []
 ip_pair = {} # a dictionary to save the node_ID-P_ID pairs
-FT_interval = [] # function as 'mod' to finger table
 
 ip_pair[0] = 0 # here we use the 0 process to bind node id 0
 
