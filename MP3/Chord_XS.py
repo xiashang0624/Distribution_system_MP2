@@ -15,7 +15,10 @@ def Node_listen(node_socket):
     global find_pred_flag
     global ip_pair
     global recv_nn_id, recv_nn_succ
-
+    global send_count
+    global count_flag
+    global recv_all_count
+    count_flag = False
     while True:
         try:
             recieve_msg,addr = node_socket.recvfrom(1024)
@@ -38,6 +41,8 @@ def Node_listen(node_socket):
                 print ('start node_initialize')
                 print (msg)
                 id, succ_node_str = int(msg[1]), msg[2:]
+                send_count = 0
+                count_flag = True
                 init_thread = threading.Thread(target = node_initialize, args=(id, succ_node_str,))
                 init_thread.start()
 
@@ -60,8 +65,18 @@ def Node_listen(node_socket):
 
             elif command == 'Find_key_done':
                 print ("find operation is done, the node that contains key " + msg[1]+ " is node "+ msg[2])
+            elif command == 'show':
+                print(FT_start)
+                print(FT_succ)
 
-
+            elif command == 'start_count':
+                send_count = 0
+                count_flag = True
+            elif command == 'end_count':
+                Unicast(s, addr_list[ip_pair[0]], 'count ' + str(node_ID) + ' ' + str(send_count))
+                count_flag = False
+            elif command == 'count':
+                recv_all_count[int(msg[1])] = int(msg[2])
         except:
             pass
 
@@ -101,6 +116,22 @@ def Client_input():
                 print ("Finger table is: FT_start + FT_succ")
                 print (FT_start)
                 print (FT_succ)
+            elif command == 'show':
+                Unicast(s, addr_list[ip_pair[int(msg[1])]], command)
+            elif command == 'show_all':
+                for i in ip_pair:
+                    Unicast(s, addr_list[ip_pair[i]], 'show')
+            elif command == 'start_count' or command == 'end_count':
+                for i in ip_pair:
+                    Unicast(s, addr_list[ip_pair[i]], command)
+                if command == 'end_count':
+                    global recv_all_count
+                    recv_all_count = {}
+                    while len(recv_all_count) < len(ip_pair):
+                        time.sleep(0.05)
+                    print('message sent after sending the start_count')
+                    print(str(sum(recv_all_count.values()) - len(ip_pair)))
+                    # minus the cost of propagate the command
             else:
                 print('Error input, input should use the following format: put/get/delay/dump + (key + value).')
                 pass
@@ -109,8 +140,12 @@ def Client_input():
 # ****************unicast with delay***************
 # define a function to uni-cast
 def Unicast(client_socket, target, message, No_delay = False):
+    global send_count
+    if count_flag:
+        send_count += 1
     send_thread = threading.Thread(target = Delay, args = (client_socket, target, message, No_delay,))
     send_thread.start()
+
 
 
 # implement the delay mechanism
@@ -266,6 +301,7 @@ def node_initialize(id, node_str):
     # update the finger tables in the other nodes
     Update_others(node_ID)
     Unicast(s, addr_list[0], 'node_join_done')
+
 
 def Update_others(id):
     for i in range(8):
