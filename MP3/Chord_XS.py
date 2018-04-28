@@ -112,11 +112,14 @@ def Client_input():
             if command == 'join' and len(msg)==2:
                 print ('join command issued: ' + message)
                 id = int(msg[1])
-                target_node, succ_node = join_node(id)
-                while wait_flag:
-                    time.sleep(0.1)
-                print ("node join has been done!")
-                print ('The pred node is: %2d and the succ node is: %2d' % (target_node, succ_node))
+                if id in ip_pair:
+                    print ("this node is in the Chord system already, pick another one")
+                else:
+                    target_node, succ_node = join_node(id)
+                    while wait_flag:
+                        time.sleep(0.1)
+                    print ("node join has been done!")
+                    print ('The pred node is: %2d and the succ node is: %2d' % (target_node, succ_node))
             elif command == 'find' and len(msg)==3:
                 print ('find command issued: ' + message)
                 ini_node, search_key = int(msg[1]), int(msg[2])
@@ -277,7 +280,11 @@ def join_node(id):
     global wait_flag
     nn_pre, nn_succ = find_successor(id)
     # assign new ip address to the new node id and update ip_pair
-    new_pid = len(ip_pair)
+    new_pid = 0
+    for key, nnid in ip_pair.items():
+        if nnid > new_pid:
+            new_pid = nnid
+    new_pid += 1
     ip_pair[id] = new_pid
     # here I simply use multicast to update the ip-pair variable across all
     # nodes.
@@ -505,6 +512,7 @@ FT_succ = []
 Keys = []
 ip_pair = {} # a dictionary to save the node_ID-P_ID pairs
 FT_interval = [] # function as 'mod' to finger table
+Crash_flag = {}
 
 ip_pair[0] = 0 # here we use the 0 process to bind node id 0
 
