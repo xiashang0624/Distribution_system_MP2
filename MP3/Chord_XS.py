@@ -140,7 +140,12 @@ def Client_input():
                     Unicast(s, addr_list[i], message, No_delay = True)
 
                 #### update the FT of all related nodes
-                Update_others_crash(crash_node_id, node_succ(crash_node_id))
+                if len(ip_pair) == 1:
+                    for i in range (8):
+                        FT_succ[i] = 0
+                    print ("crash update done!")
+                else:
+                    Update_others_crash(crash_node_id, node_succ(crash_node_id))
 
 
 
