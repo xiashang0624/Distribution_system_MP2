@@ -18,6 +18,7 @@ def Node_listen(node_socket):
     global send_count
     global count_flag
     global recv_all_count
+    global heart_beat_time
     count_flag = False
     while True:
         try:
@@ -97,8 +98,8 @@ def Node_listen(node_socket):
 
             elif command == 'heart_beat':
                 echo_source = int(msg[1])
-
-
+                recv_time = int(time.time())  # get the timestampt in second
+                heart_beat_time[echo_source] = recv_time
 
 
         except:
@@ -142,24 +143,6 @@ def Client_input():
                 print('Crash command issued:' + message)
                 crash_node_id = int(msg[1])
                 Unicast(s, addr_list[ip_pair[crash_node_id]], message)
-                ### without detection ####
-                # update ip-pair of all connected nodes
-                # here I simply use multicast to update the ip-pair variable across all
-                # nodes.
-                del ip_pair[crash_node_id]
-                message = 'remove_ip_pair ' + str(crash_node_id)
-                for i in range (1,32):
-                    Unicast(s, addr_list[i], message, No_delay = True)
-
-                #### update the FT of all related nodes
-                if len(ip_pair) == 1:
-                    for i in range (8):
-                        FT_succ[i] = 0
-                    print ("crash update done!")
-                else:
-                    Update_others_crash(crash_node_id, node_succ(crash_node_id))
-
-
 
             elif command == 'FT':
                 print ("Finger table is: FT_start + FT_succ")
@@ -489,6 +472,41 @@ def heart_beat(node):
         time.sleep(max_delay*2/1000.0)
 
 
+def check_crash(time_limit = 3):
+    # check if a node is crashed
+    # time_limit: second
+    global Crash_flag, ip_pair
+    global heart_beat_time
+    while True:
+        current_time = int(time.time())
+        for i, j in heart_beat_time.items():
+            if current_time - j > time_limit:
+                print ("node crash detected: node id: %3d"% i)
+                Crash_flag = True
+                crash_node_id = i
+                # update ip-pair of all connected nodes
+                # here I simply use multicast to update the ip-pair variable across all
+                # nodes.
+                del ip_pair[i]
+                message = 'remove_ip_pair ' + str(i)
+                for k in range (1,32):
+                    Unicast(s, addr_list[k], message, No_delay = True)
+                #### update the FT of all related nodes
+                if len(ip_pair) == 1:
+                    for i in range (8):
+                        FT_succ[i] = 0
+                    print ("crash update done!")
+                else:
+                    Update_others_crash(i, node_succ(i))
+        if Crash_flag:
+            del heart_beat_time[crash_node_id]
+            Crash_flag= False
+        time.sleep(0.1)
+
+
+
+
+
 # **********Main**************
 # get the process IP and port info based on the selected number
 def process_info(number):
@@ -543,10 +561,15 @@ ip_pair = {} # a dictionary to save the node_ID-P_ID pairs
 FT_interval = [] # function as 'mod' to finger table
 heart_beat_time= {} # dictionary to save timestamp for crash detection
 local_active_flag= False
+crash_time_threshold = 3 # second
+Crash_flag= False
 
 if P_ID != 0:
     heart_beat_thread = threading.Thread(target=heart_beat, args=(s,))
     heart_beat_thread.start()
+else:
+    check_crash_thread = threading.Thread(target=check_crash, args=(crash_time_threshold,))
+    check_crash_thread.start()
 
 
 ip_pair[0] = 0 # here we use the 0 process to bind node id 0
